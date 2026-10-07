@@ -62,7 +62,7 @@ What `build.js` produces:
 
 - `vendor/kuromoji.js`: kuromoji 0.1.2 (`node_modules/kuromoji/build/kuromoji.js` from npm), with two
   changes made by `build.js`, which checks both and stops if the pattern isn't found. (1) Dictionary URLs are
-  joined with `/` instead of `path.join`, which turns `moz-extension://` into `moz-extension:/`. (2) The
+  built by plain string concatenation instead of `path.join`, which turns `moz-extension://` into `moz-extension:/`. (2) The
   dictionary files are loaded with `fetch` and the browser's own `DecompressionStream('gzip')` instead of
   XHR and kuromoji's JavaScript gunzip. Nothing else is changed.
 - `vendor/dict/*.dat.gz`: kuromoji's IPADIC dictionary files, copied unchanged.

@@ -45,3 +45,26 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
 Code: MIT (`LICENSE`). Bundled data, built by `build.js` and not committed:
 Mongolian dictionary from [mongol-dict](https://github.com/lobster2k25/mongol-dict) (CC BY-SA 4.0);
 English fallback from JMdict © EDRDG (CC BY-SA 4.0); kuromoji.js and its dictionary (Apache 2.0).
+
+## Building the addons.mozilla.org package
+
+Needs Node 20+, npm, git, curl, gunzip (Linux, macOS, or Git Bash on Windows).
+
+```sh
+git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout 66f830d
+git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
+(cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
+cd extension && npm install && node build.js
+npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js package.json package-lock.json node_modules
+```
+
+What `build.js` produces:
+
+- `vendor/kuromoji.js`: kuromoji 0.1.2 (`node_modules/kuromoji/build/kuromoji.js` from npm), with two
+  changes made by `build.js`, which checks both and stops if the pattern isn't found. (1) Dictionary URLs are
+  joined with `/` instead of `path.join`, which turns `moz-extension://` into `moz-extension:/`. (2) The
+  dictionary files are loaded with `fetch` and the browser's own `DecompressionStream('gzip')` instead of
+  XHR and kuromoji's JavaScript gunzip. Nothing else is changed.
+- `vendor/dict/*.dat.gz`: kuromoji's IPADIC dictionary files, copied unchanged.
+- `data/dict.json`: our Mongolian dictionary (mongol-dict). `data/fallback*.json`: English glosses from
+  JMdict. All of these are JSON data, not code.

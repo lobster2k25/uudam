@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 320px; margin: 0; padding: 12px 14px; font: 14px system-ui, sans-serif; color: #1c1c1e; background: #fff; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    #grant { display: none; margin: 8px 0; padding: 8px; border-radius: 6px; background: #fff4d6; }
+    h2 { font-size: 13px; margin: 14px 0 6px; color: #555; }
+    #misses { max-height: 220px; overflow-y: auto; font-size: 13px; }
+    #misses div { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #eee; }
+    #misses span:last-child { color: #888; }
+    .buttons { display: flex; gap: 8px; margin-top: 8px; }
+    button { font: inherit; padding: 4px 10px; }
+    .credit { margin: 12px 0 0; font-size: 11px; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Uudam</h1>
+  <div id="grant">Netflix дээр ажиллах зөвшөөрөл алга. <button id="grant-btn">Зөвшөөрөх</button></div>
+  <label><input type="checkbox" id="enabled"> Хадмал харуулах</label>
+  <label><input type="checkbox" id="furigana"> Фуригана харуулах</label>
+  <h2>Толь бичигт олдоогүй үгс (<span id="miss-count">0</span>)</h2>
+  <div id="misses"></div>
+  <div class="buttons">
+    <button id="copy">Хуулах</button>
+    <button id="clear">Цэвэрлэх</button>
+  </div>
+  <p class="credit">Монгол тайлбаргүй үгэнд англи тайлбар: JMdict © EDRDG, CC BY-SA 4.0</p>
+  <script src="popup.js"></script>
+</body>
+</html>

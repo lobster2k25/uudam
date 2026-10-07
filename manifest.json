@@ -1,0 +1,84 @@
+{
+  "manifest_version": 3,
+  "name": "Uudam – Subtitle Translations for Netflix",
+  "short_name": "Uudam",
+  "version": "0.1.0",
+  "description": "Japanese subtitles on Netflix with furigana; click a word for its Mongolian meaning and kanji breakdown.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "uudam@lobster2k25",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "permissions": [
+    "storage"
+  ],
+  "background": {
+    "scripts": [
+      "vendor/kuromoji.js",
+      "src/lookup.js",
+      "src/background.js"
+    ]
+  },
+  "host_permissions": [
+    "*://www.netflix.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.netflix.com/*"
+      ],
+      "js": [
+        "src/inject.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://www.netflix.com/*"
+      ],
+      "js": [
+        "src/lookup.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/overlay.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "data/dict.json",
+        "data/fallback.json"
+      ],
+      "matches": [
+        "*://www.netflix.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "Uudam",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_popup": "popup/popup.html"
+  }
+}

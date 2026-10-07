@@ -1,0 +1,11 @@
+{
+  "name": "uudam",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/lookup-test.js && node test/firefox-test.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0"
+  }
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Our own sample lines in the shape of a Netflix IMSC 1.1 Japanese track: tick times, ruby, speaker label. -->
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttp="http://www.w3.org/ns/ttml#parameter"
+    xmlns:tts="http://www.w3.org/ns/ttml#styling" ttp:tickRate="10000000" xml:lang="ja">
+  <head>
+    <styling>
+      <style xml:id="rb" tts:ruby="base"/>
+      <style xml:id="rt" tts:ruby="text"/>
+    </styling>
+  </head>
+  <body>
+    <div>
+      <p begin="0t" end="80000000t"><span tts:ruby="container"><span style="rb">危</span><span style="rt">あぶ</span></span>ない！ 伏せろ！</p>
+      <p begin="80000000t" end="160000000t">そんな齟齬が生まれたのは<br/>忖度のせいだ</p>
+      <p begin="160000000t" end="600000000t">（九条）あの人たちに対して<br/>役に立つと思わなかった</p>
+      <p begin="600000000t" end="700000000t">取り戻すまで<br/>諦めない</p>
+    </div>
+  </body>
+</tt>

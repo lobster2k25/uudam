@@ -1,0 +1,61 @@
+<!doctype html>
+<!-- Fake Netflix watch page for testing the installed extension in Firefox (test/firefox-test.js).
+     Served at /watch/123 by test/serve.js. The video is a real playing stream drawn from a canvas,
+     and the player's manifest is "parsed" with JSON.parse so inject.js sees it like on Netflix. -->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>fake netflix</title>
+  <style>
+    body { margin: 0; background: #000; }
+    .watch-video { position: fixed; inset: 0; }
+    video { width: 100%; height: 100%; }
+    .player-timedtext { position: fixed; bottom: 40px; width: 100%; text-align: center; color: #fff; font-size: 30px; }
+  </style>
+</head>
+<body>
+  <div class="watch-video">
+    <video muted></video>
+    <div class="player-timedtext"><span>NETFLIX OWN SUBTITLE</span></div>
+  </div>
+  <script>
+    const canvas = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+    const ctx = canvas.getContext('2d');
+    const video = document.querySelector('video');
+    setInterval(() => {
+      ctx.fillStyle = `hsl(${(Date.now() / 50) % 360} 30% 20%)`;
+      ctx.fillRect(0, 0, 320, 180);
+    }, 50);
+    video.srcObject = canvas.captureStream(20);
+    video.play();
+
+    // What Netflix's player does with its manifest response.
+    const manifest = {
+      result: {
+        movieId: 123,
+        timedtexttracks: [
+          { language: 'en', languageDescription: 'English', isForcedNarrative: false, rawTrackType: 'subtitles',
+            ttDownloadables: { 'webvtt-lssdh-ios8': { urls: [{ url: '/test/sample-en.vtt' }] } } },
+          { language: 'ja', languageDescription: '日本語', isForcedNarrative: false, rawTrackType: 'subtitles',
+            ttDownloadables: { 'imsc1.1': { urls: [{ url: '/test/sample.ttml' }] }, 'nflx-cmisc': { urls: [{ url: '/x' }] } } },
+        ],
+      },
+    };
+    // ?mode=capture: no manifest we can see; the player just downloads the subtitle file itself.
+    if (new URLSearchParams(location.search).get('mode') === 'capture') {
+      setTimeout(() => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/test/sample.ttml?o=1');
+        xhr.responseType = 'arraybuffer';
+        xhr.send();
+      }, 300);
+    } else setTimeout(() => {
+      // Parsed with JSON from a fresh about:blank frame, nested one level deeper than usual.
+      const frame = document.body.appendChild(document.createElement('iframe'));
+      frame.style.display = 'none';
+      const FrameJSON = frame.contentWindow.JSON;
+      FrameJSON.parse(JSON.stringify({ version: 2, payload: [manifest] }));
+    }, 300);
+  </script>
+</body>
+</html>

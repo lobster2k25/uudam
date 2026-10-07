@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- Stand-in for the Netflix player: runs the real content.js with a fake video clock and a fake
+     subtitle track, so the overlay and popup can be checked without Netflix. node test/serve.js -->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>jap_sub test player</title>
+  <link rel="stylesheet" href="/src/overlay.css">
+  <style>
+    body { margin: 0; background: #000; }
+    .watch-video { position: fixed; inset: 0; background: linear-gradient(#2b3a4a, #0b0f14); }
+    video { display: none; }
+    #clock { position: fixed; top: 10px; left: 10px; color: #888; font: 14px monospace; }
+  </style>
+  <script>
+    // Minimal stand-in for the extension APIs content.js uses.
+    const store = {};
+    window.browser = {
+      runtime: {
+        getURL: (p) => '/' + p,
+        // Stands in for src/background.js.
+        sendMessage: async (msg) => {
+          const t = await (window.tokenizer ||= new Promise((resolve, reject) => kuromoji.builder({ dicPath: '/vendor/dict/' })
+            .build((err, tk) => (err ? reject(err) : resolve(tk)))));
+          return msg.lines.map((line) => t.tokenize(line));
+        },
+      },
+      storage: {
+        local: {
+          get: async (defaults) => ({ ...defaults, ...store }),
+          set: async (v) => Object.assign(store, v),
+        },
+        onChanged: { addListener() {} },
+      },
+    };
+  </script>
+</head>
+<body>
+  <div class="watch-video"><video></video></div>
+  <div id="clock"></div>
+  <script>
+    // Fake playback clock on the <video> element.
+    const video = document.querySelector('video');
+    let t = 0, playing = true, last = performance.now();
+    Object.defineProperty(video, 'currentTime', { get: () => t });
+    Object.defineProperty(video, 'paused', { get: () => !playing });
+    video.pause = () => { playing = false; };
+    video.play = async () => { playing = true; };
+    (function run(now) {
+      if (playing) t += (now - last) / 1000;
+      last = now;
+      document.getElementById('clock').textContent = `${t.toFixed(1)}s ${playing ? '▶' : '⏸'}`;
+      requestAnimationFrame(run);
+    })(last);
+    document.querySelector('.watch-video').addEventListener('click', () => { playing = !playing; });
+
+    const VTT = `WEBVTT
+
+1
+00:00:00.500 --> 00:00:06.000
+<c.japanese>危ない！ 伏せろ！</c.japanese>
+
+2
+00:00:06.000 --> 00:00:12.000
+取り戻すまで
+諦めない
+
+3
+00:00:12.000 --> 00:00:30.000
+あの人たちに対して
+役に立つと思わなかった`;
+
+    // Plays the part of inject.js: announce a Japanese track, answer the download request.
+    window.addEventListener('message', (e) => {
+      if (typeof e.data !== 'string' || !e.data.startsWith('jap-sub:')) return;
+      const msg = JSON.parse(e.data.slice(8));
+      if (msg.type === 'fetch') window.postMessage('jap-sub:' + JSON.stringify({ type: 'vtt', key: msg.key, text: VTT }), '*');
+    });
+    // page.html#click opens the popup on the first word once subtitles show (for headless screenshots).
+    if (location.hash === '#click') {
+      const timer = setInterval(() => {
+        const word = document.querySelector('.jap-sub-word');
+        if (word) { clearInterval(timer); word.click(); }
+      }, 200);
+    }
+    setTimeout(() => window.postMessage('jap-sub:' + JSON.stringify({
+      type: 'tracks', movieId: 'test',
+      tracks: [{ language: 'ja', name: '日本語', forced: false, cc: false, url: 'fake://ja.vtt' }],
+    }), '*'), 100);
+  </script>
+  <script src="/vendor/kuromoji.js"></script>
+  <script src="/src/lookup.js"></script>
+  <script src="/src/content.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+/* Netflix's own subtitles stay in the page (we may read their text) but are hidden while ours show. */
+.jap-sub-active .player-timedtext { opacity: 0 !important; }
+
+#jap-sub-root {
+  font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
+  color: #fff;
+  line-height: 1.5;
+}
+
+.jap-sub-lines {
+  position: fixed;
+  left: 50%;
+  bottom: 12vh;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 90vw;
+  z-index: 2147483000;
+  text-align: center;
+  font-size: clamp(20px, 3vw, 44px);
+  pointer-events: none;
+}
+
+.jap-sub-line {
+  display: inline-block;
+  margin: 0.1em 0;
+  padding: 0.05em 0.4em;
+  border-radius: 0.2em;
+  background: rgba(0, 0, 0, 0.55);
+  text-shadow: 0 0 4px #000;
+}
+.jap-sub-line + .jap-sub-line { display: table; margin-left: auto; margin-right: auto; }
+
+.jap-sub-word {
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 0.15em;
+}
+.jap-sub-word:hover { background: rgba(255, 214, 10, 0.35); }
+.jap-sub-unknown { text-decoration: underline dotted rgba(255, 255, 255, 0.45); text-underline-offset: 0.2em; }
+
+#jap-sub-root rt {
+  font-size: 0.45em;
+  color: #ffe58a;
+}
+
+.jap-sub-popup {
+  position: fixed;
+  z-index: 2147483001;
+  width: min(380px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #1c1c1e;
+  color: #f2f2f2;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: left;
+  text-shadow: none;
+}
+.jap-sub-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.jap-sub-head-word { font-size: 26px; font-weight: 600; }
+.jap-sub-head-reading { font-size: 16px; color: #ffe58a; }
+.jap-sub-missing { color: #aaa; font-style: italic; }
+.jap-sub-entry + .jap-sub-entry { margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; }
+.jap-sub-pos { font-size: 12px; color: #8e8e93; text-transform: lowercase; }
+.jap-sub-meanings { margin: 4px 0 0; padding-left: 22px; }
+.jap-sub-note { margin-top: 6px; color: #c7c7cc; font-size: 13px; }
+.jap-sub-example { margin-top: 8px; padding-left: 10px; border-left: 2px solid #444; font-size: 13px; }
+.jap-sub-example-mn { color: #aeaeb2; }
+.jap-sub-parts { margin-top: 8px; font-size: 13px; color: #c7c7cc; }
+.jap-sub-kanji { margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 13px; }
+.jap-sub-kanji-row { display: flex; align-items: baseline; gap: 10px; }
+.jap-sub-kanji-char { font-size: 20px; width: 1.2em; }
+
+/* The whole line counts as "on the subtitles" for pausing, not just the words. */
+.jap-sub-line { pointer-events: auto; }
+
+/* On/off button: shows while the mouse moves, like Netflix's controls. */
+.jap-sub-toggle {
+  position: fixed;
+  right: 2.5vw;
+  bottom: 20vh;
+  z-index: 2147483000;
+  width: 44px;
+  height: 44px;
+  border: 2px solid #ffd60a;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffd60a;
+  font: 600 22px/1 "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.jap-sub-toggle.jap-sub-visible { opacity: 1; pointer-events: auto; }
+.jap-sub-toggle.jap-sub-off { border-color: #777; color: #777; text-decoration: line-through; }
+
+/* Kanji that open their own entry. */
+.jap-sub-k { cursor: pointer; border-bottom: 1px dotted #8e8e93; }
+.jap-sub-k:hover { color: #ffd60a; border-bottom-color: #ffd60a; }
+.jap-sub-clickable { cursor: pointer; border-radius: 4px; }
+.jap-sub-clickable:hover { background: #2c2c2e; }
+.jap-sub-back {
+  margin: 0 0 8px;
+  padding: 2px 8px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: transparent;
+  color: #c7c7cc;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.jap-sub-back:hover { color: #fff; border-color: #888; }
+.jap-sub-big-kanji { font-size: 48px; line-height: 1; }
+.jap-sub-kanji-meanings { font-size: 16px; }
+.jap-sub-kanji-examples { margin-top: 10px; display: grid; gap: 4px; font-size: 14px; }
+.jap-sub-kanji-example { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.jap-sub-kanji-example-word { font-size: 17px; }
+
+/* English fallback (JMdict) for words without a Mongolian entry yet. */
+.jap-sub-english .jap-sub-meanings { color: #d1d1d6; }
+.jap-sub-pos-inline { font-size: 12px; color: #8e8e93; }
+.jap-sub-credit { margin-top: 8px; font-size: 11px; color: #636366; }

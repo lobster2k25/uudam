@@ -1,4 +1,4 @@
-# Uudam – Subtitle Translations for Netflix (browser extension)
+# Uudam – Netflix Subtitles (browser extension)
 
 Japanese subtitles on Netflix with furigana; click a word for its Mongolian meaning and kanji breakdown.
 Firefox first (Manifest V3, Firefox 142+). Chrome would need the background script turned into a service worker.

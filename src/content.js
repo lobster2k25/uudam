@@ -413,11 +413,11 @@
       for (const m of e.meanings_mn) ol.append(el('li', null, m));
       box.append(ol);
       if (e.note_mn) box.append(el('div', 'jap-sub-note', e.note_mn));
-      if (e.example && e.example.ja) {
+      for (const x of e.examples || []) {
         const ex = el('div', 'jap-sub-example');
         const ja = el('div', 'jap-sub-example-ja');
-        ja.append(withKanji(e.example.ja));
-        ex.append(ja, el('div', 'jap-sub-example-mn', e.example.mn));
+        ja.append(withKanji(x.ja));
+        ex.append(ja, el('div', 'jap-sub-example-mn', x.mn));
         box.append(ex);
       }
       out.push(box);

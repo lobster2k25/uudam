@@ -39,7 +39,7 @@ for (const f of fs.readdirSync(path.join(kuromoji, 'dict'))) {
 const read = (dir) => fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()
   .flatMap((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
 const kanji = read(path.join(dictRepo, 'ja-mn', 'kanji'))
-  .map(({ kanji, meanings_mn, note_kind, note_mn, examples }) => ({ kanji, meanings_mn, note_kind, note_mn, examples }));
+  .map(({ kanji, meanings_mn, origin_mn, note_kind, note_mn, examples }) => ({ kanji, meanings_mn, origin_mn: origin_mn || '', note_kind, note_mn, examples }));
 // Names (countries, places, surnames…) become word-shaped entries: the Mongolian name, then its description.
 const namesDir = path.join(dictRepo, 'ja-mn', 'names');
 const names = (fs.existsSync(namesDir) ? read(namesDir) : [])

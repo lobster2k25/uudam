@@ -41,10 +41,12 @@ function buildKanji(ext, kanjiList) {
   const xml = fs.readFileSync(kvgFile, 'utf8');
   const missing = new Map();
   const nameOf = (c, original) => {
-    // The original form first: 阝 is 阜 (hill) on the left but 邑 (village) on the right.
+    // radicals.json first: the shape's name as a part (礻 шүтлэг, not 示's own "үзүүлэх"; "" = no label).
+    // Then the original form: 阝 is 阜 (hill) on the left but 邑 (village) on the right.
+    if (radicals.has(c)) return radicals.get(c);
     for (const x of [original, c]) {
-      if (x && ours.has(x)) return ours.get(x).meanings_mn[0];
       if (x && radicals.has(x)) return radicals.get(x);
+      if (x && ours.has(x)) return ours.get(x).meanings_mn[0];
     }
     return '';
   };
@@ -74,17 +76,43 @@ function buildKanji(ext, kanjiList) {
       for (const g of node.kids) {
         if (!g.attrs.element) { collect(g); continue; }
         const c = g.attrs.element;
-        const role = g.attrs.phon ? 'phon' : g.attrs.radical ? 'rad' : '';
+        // One part drawn in pieces around another (囗 in 国: kvg:part="1", "2") is listed once.
+        if (g.attrs.part && parts.some((p) => p.c === c)) continue;
+        // Radical: the general or traditional one, not Nelson's alone (吉: 士 is Nelson's, 口 the traditional one).
+        const role = /general|tradit/.test(g.attrs.radical || '') ? 'rad' : '';
+        if (g.attrs.phon) phonMarks.push({ c, value: [...g.attrs.phon][0] });
         const mn = nameOf(c, g.attrs.original);
-        if (!mn && !ours.has(c)) missing.set(c, (missing.get(c) || 0) + 1);
+        if (!mn && !ours.has(c) && !radicals.has(c)) missing.set(c, (missing.get(c) || 0) + 1);
         parts.push({ c, role, mn });
       }
     };
+    const phonMarks = [];
     if (top) collect(top);
+    // The sound part: KanjiVG's kvg:phon names it ("亡") but sometimes sits on the wrong group (忙: on 忄),
+    // so the part whose character the value names wins, else the group that carries the mark.
+    for (const m of phonMarks) {
+      const p = parts.find((x) => x.c === m.value) || parts.find((x) => x.c === m.c);
+      if (p) p.role = 'phon';
+    }
 
     const info = kjm.get(k) || {};
-    const e = { k, n: d.length, on: on(info.regOn), kun: kun(info.regKun), type: TYPES[info.type] || '', parts, d };
-    if (info.phonetic) e.phon = info.phonetic;
+    let type = TYPES[info.type] || '';
+    // A sound part is claimed only when both sources say so: Kanjium calls the kanji phono-semantic and
+    // KanjiVG marks one of its parts as the sound part (書 ← 日 or 夜 ← 亠 are KanjiVG marking the modern
+    // shape; 村 ← 寸 is Kanjium missing one). When they disagree we only say it is built from parts
+    // ('parts') and keep both signals in `doubt` for the writers of our own explanation.
+    const kvgPhon = parts.find((p) => p.role === 'phon');
+    if (type === 'phono' && !kvgPhon) {
+      type = 'parts';
+    } else if (type !== 'phono' && kvgPhon && (type === 'compound' || type === '')) {
+      type = 'parts';
+    }
+    let doubt = null;
+    if (type === 'parts') doubt = { kanjium: info.type || '', kanjium_phonetic: info.phonetic || '', kanjivg_phonetic: kvgPhon ? kvgPhon.c : '' };
+    if (type !== 'phono') for (const p of parts) if (p.role === 'phon') p.role = '';
+    const e = { k, n: d.length, on: on(info.regOn), kun: kun(info.regKun), type, parts, d };
+    if (info.phonetic && type === 'phono') e.phon = info.phonetic;
+    if (doubt) e.doubt = doubt;
     out.push(e);
   }
 

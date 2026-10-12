@@ -575,6 +575,8 @@
     ideo: ['Тэмдэг үсэг', 'Санааг зураас, тэмдгээр илэрхийлсэн.'],
     compound: ['Нийлмэл утгат үсэг', 'Хэсгүүдийн утга нийлж шинэ утга болсон.'],
     phono: ['Утга-дуудлагын үсэг', 'Нэг хэсэг нь утгыг, нөгөө нь дуудлагыг заана.'],
+    // The sources disagree on whether one part gives the sound, so we only name the parts.
+    parts: ['Хэсгүүдээс бүтсэн', 'Дараах хэсгүүдээс бүтсэн ханз.'],
   };
 
   // Asks the background for kanji not seen yet; the popup is redrawn when they arrive.
@@ -610,8 +612,17 @@
     head.append(big, side);
     out.push(head);
 
-    if (info) out.push(...readingsView(info), ...formationView(info));
-    if (k.note_mn) out.push(el('div', 'jap-sub-note', k.note_mn));
+    if (info) out.push(...readingsView(info), ...formationView(info, k));
+    // Without the kanji layer, our explanation stands alone; then the learning tip, labelled so a memory
+    // aid is never mistaken for history.
+    if (!info && k.origin_mn) out.push(el('div', 'jap-sub-origin', k.origin_mn));
+    if (k.note_mn) {
+      const note = el('div', 'jap-sub-note');
+      const label = { mnemonic: 'Санах арга', compare: 'Харьцуулах', usage: 'Хэрэглээ' }[k.note_kind];
+      if (label) note.append(el('span', 'jap-sub-note-label', label), ' ');
+      note.append(k.note_mn);
+      out.push(note);
+    }
     if (k.examples && k.examples.length) {
       const box = el('div', 'jap-sub-kanji-examples');
       for (const x of k.examples) {
@@ -689,20 +700,25 @@
   }
 
   // How the kanji was formed, its parts (氵 ус + 毎 дуудлага) and the kanji that share its phonetic part.
-  function formationView(info) {
+  function formationView(info, k) {
     const out = [];
     const type = KANJI_TYPES[info.type];
+    const box = el('div', 'jap-sub-formation');
     if (type) {
-      const box = el('div', 'jap-sub-formation');
-      box.append(el('div', 'jap-sub-formation-type', type[0]), el('div', 'jap-sub-hint', type[1]));
+      // Pictograph / ideograph / compound labels come from Kanjium alone and are sometimes wrong (原, 疑);
+      // when we have our own explanation, only the label both sources agree on (meaning + sound) stays.
+      if (!k.origin_mn || info.type === 'phono') box.append(el('div', 'jap-sub-formation-type', type[0]), el('div', 'jap-sub-hint', type[1]));
       // Pictographs and simple signs are not built from parts, so their KanjiVG groups (行 → 彳…) are left out.
-      if ((info.type === 'compound' || info.type === 'phono') && info.parts.length) {
+      if ((info.type === 'compound' || info.type === 'phono' || info.type === 'parts') && info.parts.length) {
         const parts = el('div', 'jap-sub-formation-parts');
         info.parts.forEach((p, i) => {
           if (i) parts.append(el('span', 'jap-sub-plus', '+'));
           const chip = el('span', `jap-sub-part${p.role ? ` jap-sub-part-${p.role}` : ''}`);
           chip.append(el('span', 'jap-sub-part-char', p.c));
-          const label = p.role === 'phon' ? [p.mn, 'дуудлага'].filter(Boolean).join(' · ') : p.mn;
+          // Only the radical's name is reliable as "the meaning here" (氵 ус). Other parts are modern shapes
+          // whose own meaning is often not what they stand for (里: top 田 drawn like 日; 熊: 灬 legs, not fire);
+          // the explanation below says what they are.
+          const label = p.role === 'phon' ? 'дуудлага' : p.role === 'rad' ? p.mn : '';
           if (label) chip.append(el('span', 'jap-sub-part-mn', label));
           if (index.kanji.has(p.c)) {
             chip.classList.add('jap-sub-clickable');
@@ -712,8 +728,13 @@
         });
         box.append(parts);
       }
-      out.push(box);
     }
+    // Our own explanation of how the kanji was formed (mongol-dict origin_mn).
+    // Its leading «Утга-дуудлагын үсэг:» is dropped when the same label is already shown above it.
+    const shown = box.querySelector('.jap-sub-formation-type');
+    const origin = shown ? k.origin_mn.replace(new RegExp(`^${shown.textContent}( гэж үздэг)?:\s*`), (m, hedge) => (hedge ? 'Гэж үздэг: ' : '')) : k.origin_mn;
+    if (origin) box.append(el('div', 'jap-sub-origin', origin));
+    if (box.childNodes.length) out.push(box);
     if (info.fam && info.fam.length > 1) {
       const box = el('div', 'jap-sub-family');
       box.append(el('div', 'jap-sub-hint', `${info.phon} хэсэгтэй, ойролцоо дуудлагатай ханз`));

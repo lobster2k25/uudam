@@ -178,3 +178,5 @@
 .jap-sub-family-on { font-size: 11px; color: #ffe58a; }
 .jap-sub-kanji-used { flex: none; display: inline-flex; align-items: baseline; gap: 3px; min-width: 4em; }
 .jap-sub-kanji-used-kind { font-size: 10px; color: #8e8e93; }
+.jap-sub-origin { margin-top: 8px; font-size: 13px; color: #e5e5ea; }
+.jap-sub-note-label { padding: 0 5px; border-radius: 4px; background: #2c2c2e; font-size: 11px; color: #ffd60a; }

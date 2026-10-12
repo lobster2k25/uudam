@@ -26,6 +26,7 @@ netflix.com permission — click it. Errors show in the Netflix tab's console wi
 | `src/content.js` | Picks the Japanese track, keeps it in sync with `video.currentTime`, draws the line with furigana; hovering the subtitles pauses the video, resting on a word opens its popup (kanji in it open the kanji's entry); on/off button 字 and Alt+J; logs words missing from our dictionary |
 | `src/lookup.js` | Pure logic: joins kuromoji tokens into learner-sized words (食べ+て+い+た → 食べる), dictionary lookup, furigana |
 | `build-fallback.js` | English fallback from JMdict (© EDRDG, CC BY-SA 4.0) for words without a Mongolian entry: a 37k-word subset per tab, the full 219k set in the background on demand. A separate layer: never copied into `mongol-dict/ja-mn` |
+| `build-kanji.js` | Kanji layer `data/kanji.json` (2.4 MB, background only): jōyō on/kun readings, formation type, radical and phonetic part and the kanji sharing it (Kanjium, CC BY-SA 4.0), parts and stroke paths (KanjiVG © Ulrich Apel, CC BY-SA 3.0). The kanji popup draws the strokes in order. Part names come from our kanji and `mongol-dict/ja-mn/radicals.json`. A separate layer: never copied into `mongol-dict/ja-mn` |
 | `popup/` | Toolbar popup: on/off, furigana on/off, list of missing words (copy as TSV for the next dictionary batch) |
 
 If Netflix gives no WebVTT track, content.js falls back to reading the text Netflix itself draws
@@ -38,13 +39,15 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   content script with a fake subtitle track, to check the overlay and popup without Netflix.
 - `npm install` once, then `node test/firefox-test.js` — installs the extension into headless Firefox and checks the
   fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
-- `npx web-ext lint --source-dir . --ignore-files test build.js package.json package-lock.json node_modules` — Mozilla's checks (currently 0 warnings).
+- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules` — Mozilla's checks (currently 0 warnings).
 
 ## License
 
 Code: MIT (`LICENSE`). Bundled data, built by `build.js` and not committed:
 Mongolian dictionary from [mongol-dict](https://github.com/lobster2k25/mongol-dict) (CC BY-SA 4.0);
-English fallback from JMdict © EDRDG (CC BY-SA 4.0); kuromoji.js and its dictionary (Apache 2.0).
+English fallback from JMdict © EDRDG (CC BY-SA 4.0); kanji readings and formation from
+[Kanjium](https://github.com/mifunetoshiro/kanjium) © Uros Ozvatic (CC BY-SA 4.0); stroke order and parts from
+[KanjiVG](https://kanjivg.tagaini.net) © Ulrich Apel (CC BY-SA 3.0); kuromoji.js and its dictionary (Apache 2.0).
 
 ## Building the addons.mozilla.org package
 
@@ -55,7 +58,7 @@ git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict check
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js
-npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js package.json package-lock.json node_modules
+npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules
 ```
 
 What `build.js` produces:
@@ -67,4 +70,4 @@ What `build.js` produces:
   XHR and kuromoji's JavaScript gunzip. Nothing else is changed.
 - `vendor/dict/*.dat.gz`: kuromoji's IPADIC dictionary files, copied unchanged.
 - `data/dict.json`: our Mongolian dictionary (mongol-dict). `data/fallback*.json`: English glosses from
-  JMdict. All of these are JSON data, not code.
+  JMdict. `data/kanji.json`: readings, parts and stroke paths from Kanjium and KanjiVG. All of these are JSON data, not code.

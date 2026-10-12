@@ -125,3 +125,54 @@
 .jap-sub-english .jap-sub-meanings { color: #d1d1d6; }
 .jap-sub-pos-inline { font-size: 12px; color: #8e8e93; }
 .jap-sub-credit { margin-top: 8px; font-size: 11px; color: #636366; }
+
+/* Kanji view: stroke order, readings, how the kanji was formed (KanjiVG + Kanjium, data/kanji.json). */
+.jap-sub-kanji-head { align-items: center; }
+.jap-sub-hint { font-size: 12px; color: #8e8e93; }
+.jap-sub-kanji-side { display: flex; flex-direction: column; gap: 2px; }
+.jap-sub-big-kanji .jap-sub-strokes { display: block; width: 108px; height: 108px; }
+.jap-sub-strokes path { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.jap-sub-strokes-ghost path { stroke: #3a3a3c; }
+.jap-sub-strokes-ink path {
+  stroke: #fff;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation-name: jap-sub-draw;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+}
+.jap-sub-strokes-nums text {
+  font: 600 11px sans-serif;
+  fill: #ff9f0a;
+  opacity: 0;
+  animation: jap-sub-show 0.2s forwards;
+}
+@keyframes jap-sub-draw { to { stroke-dashoffset: 0; } }
+@keyframes jap-sub-show { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .jap-sub-strokes-ink path { animation: none; stroke-dashoffset: 0; }
+  .jap-sub-strokes-nums text { animation: none; opacity: 1; }
+}
+.jap-sub-readings { margin-top: 8px; display: grid; gap: 3px; font-size: 15px; }
+.jap-sub-reading-row { display: flex; align-items: baseline; gap: 8px; }
+.jap-sub-reading-label { flex: none; width: 5.5em; font-size: 12px; color: #8e8e93; }
+.jap-sub-reading-list { display: flex; flex-wrap: wrap; align-items: baseline; }
+.jap-sub-reading { color: #ffe58a; }
+.jap-sub-okurigana { color: #8e8e93; }
+.jap-sub-reading-rare { opacity: 0.5; }
+.jap-sub-reading-sep { color: #636366; }
+.jap-sub-formation { margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; }
+.jap-sub-formation-type { font-size: 14px; font-weight: 600; }
+.jap-sub-formation-parts { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jap-sub-plus { color: #8e8e93; }
+.jap-sub-part { display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 8px; border: 1px solid #444; border-radius: 6px; }
+.jap-sub-part-rad { border-color: #0a84ff; }
+.jap-sub-part-phon { border-color: #ff9f0a; }
+.jap-sub-part-char { font-size: 20px; }
+.jap-sub-part-mn { font-size: 12px; color: #c7c7cc; }
+.jap-sub-family { margin-top: 8px; }
+.jap-sub-family-list { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.jap-sub-family-item { display: inline-flex; flex-direction: column; align-items: center; min-width: 2.6em; padding: 2px 4px; border-radius: 4px; }
+.jap-sub-family-self { background: #2c2c2e; }
+.jap-sub-family-char { font-size: 18px; }
+.jap-sub-family-on { font-size: 11px; color: #ffe58a; }

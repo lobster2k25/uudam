@@ -368,8 +368,14 @@
   const inZone = (node) => !!node && node.nodeType === 1 && (lineBox.contains(node) || (!!popup && popup.contains(node)));
 
   document.addEventListener('pointerover', (e) => {
-    if (!inZone(e.target)) return;
+    // Outside our elements. This also catches leaving without a pointerout, as when the popup redraws
+    // smaller (← буцах) and the element under the pointer is gone.
+    if (!inZone(e.target)) {
+      if (hovering && !leaveTimer) leaveTimer = setTimeout(leaveZone, 300);
+      return;
+    }
     clearTimeout(leaveTimer);
+    leaveTimer = null;
     if (hovering) return;
     hovering = true;
     const video = document.querySelector('video');
@@ -383,6 +389,7 @@
   }, true);
 
   function leaveZone() {
+    leaveTimer = null;
     hovering = false;
     clearTimeout(hoverTimer);
     hideLookup();
@@ -549,11 +556,44 @@
     return out;
   }
 
+  // Readings, parts and strokes (KanjiVG + Kanjium) come from the background page, one kanji at a time.
+  const kanjiInfo = new Map(); // kanji → info, or null when the background has none
+  const KANJI_TYPES = {
+    picto: ['Дүрс үсэг', 'Ямар нэг зүйлийн зургаас үүссэн.'],
+    ideo: ['Тэмдэг үсэг', 'Санааг зураас, тэмдгээр илэрхийлсэн.'],
+    compound: ['Нийлмэл утгат үсэг', 'Хэсгүүдийн утга нийлж шинэ утга болсон.'],
+    phono: ['Утга-дуудлагын үсэг', 'Нэг хэсэг нь утгыг, нөгөө нь дуудлагыг заана.'],
+  };
+
   function kanjiView(k) {
     const out = [];
-    const head = el('div', 'jap-sub-head');
-    head.append(el('span', 'jap-sub-big-kanji', k.kanji), el('span', 'jap-sub-kanji-meanings', k.meanings_mn.join(', ')));
+    if (!kanjiInfo.has(k.kanji)) {
+      kanjiInfo.set(k.kanji, undefined); // asked
+      api.runtime.sendMessage({ type: 'kanji', kanji: k.kanji }).then((info) => {
+        kanjiInfo.set(k.kanji, info || null);
+        const view = views[views.length - 1];
+        if (popup && view && view.kanji === k) drawPopup();
+      }, () => kanjiInfo.set(k.kanji, null));
+    }
+    const info = kanjiInfo.get(k.kanji);
+
+    const head = el('div', 'jap-sub-head jap-sub-kanji-head');
+    const big = el('span', 'jap-sub-big-kanji', info ? null : k.kanji);
+    if (info && info.d.length) {
+      big.append(strokeSvg(info));
+      big.title = 'Дахин зурах';
+      big.classList.add('jap-sub-clickable');
+      big.addEventListener('click', () => big.replaceChildren(strokeSvg(info)));
+    } else if (info) {
+      big.textContent = k.kanji;
+    }
+    const side = el('div', 'jap-sub-kanji-side');
+    side.append(el('span', 'jap-sub-kanji-meanings', k.meanings_mn.join(', ')));
+    if (info) side.append(el('span', 'jap-sub-hint', `${info.n} зураас · дарвал дахин зурна`));
+    head.append(big, side);
     out.push(head);
+
+    if (info) out.push(...readingsView(info), ...formationView(info));
     if (k.note_mn) out.push(el('div', 'jap-sub-note', k.note_mn));
     if (k.examples && k.examples.length) {
       const box = el('div', 'jap-sub-kanji-examples');
@@ -562,6 +602,115 @@
         row.append(withKanji(x.word, 'jap-sub-kanji-example-word'), el('span', 'jap-sub-head-reading', x.reading), el('span', null, `— ${x.mn}`));
         box.append(row);
       }
+      out.push(box);
+    }
+    if (info) out.push(el('div', 'jap-sub-credit', 'KanjiVG © Ulrich Apel (CC BY-SA 3.0) · Kanjium (CC BY-SA 4.0)'));
+    return out;
+  }
+
+  // The kanji drawn stroke by stroke (KanjiVG paths, 109×109), with each stroke's number at its start.
+  function strokeSvg(info) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 109 109');
+    svg.setAttribute('class', 'jap-sub-strokes');
+    const ghost = document.createElementNS(NS, 'g');
+    ghost.setAttribute('class', 'jap-sub-strokes-ghost');
+    const ink = document.createElementNS(NS, 'g');
+    ink.setAttribute('class', 'jap-sub-strokes-ink');
+    const nums = document.createElementNS(NS, 'g');
+    nums.setAttribute('class', 'jap-sub-strokes-nums');
+    const step = Math.min(0.5, 6 / info.d.length); // long kanji draw faster, at most ~6 s in all
+    info.d.forEach((d, i) => {
+      const back = document.createElementNS(NS, 'path');
+      back.setAttribute('d', d);
+      ghost.append(back);
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('pathLength', '1');
+      p.style.animationDelay = `${i * step}s`;
+      p.style.animationDuration = `${step * 0.9}s`;
+      ink.append(p);
+      const m = d.match(/^M\s*([-\d.]+)[,\s]+([-\d.]+)/);
+      if (m) {
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('x', Math.max(2, Number(m[1]) - 6));
+        t.setAttribute('y', Math.max(8, Number(m[2]) - 2));
+        t.style.animationDelay = `${i * step}s`;
+        t.textContent = String(i + 1);
+        nums.append(t);
+      }
+    });
+    svg.append(ghost, ink, nums);
+    return svg;
+  }
+
+  // 音 (Chinese-derived) and 訓 (native Japanese) readings; okurigana in grey, rarer readings dimmed.
+  function readingsView(info) {
+    const box = el('div', 'jap-sub-readings');
+    const row = (label, list, draw) => {
+      if (!list.length) return;
+      const r = el('div', 'jap-sub-reading-row');
+      r.append(el('span', 'jap-sub-reading-label', label));
+      const items = el('span', 'jap-sub-reading-list');
+      list.forEach((x, i) => {
+        if (i) items.append(el('span', 'jap-sub-reading-sep', '・'));
+        const item = draw(x);
+        if (x[x.length - 1] === 1) item.classList.add('jap-sub-reading-rare');
+        items.append(item);
+      });
+      r.append(items);
+      box.append(r);
+    };
+    row('音 Хятад', info.on, (x) => el('span', 'jap-sub-reading', x[0]));
+    row('訓 Япон', info.kun, ([stem, oku]) => {
+      const s = el('span', 'jap-sub-reading', stem);
+      if (oku) s.append(el('span', 'jap-sub-okurigana', oku));
+      return s;
+    });
+    return box.childNodes.length ? [box] : [];
+  }
+
+  // How the kanji was formed, its parts (氵 ус + 毎 дуудлага) and the kanji that share its phonetic part.
+  function formationView(info) {
+    const out = [];
+    const type = KANJI_TYPES[info.type];
+    if (type) {
+      const box = el('div', 'jap-sub-formation');
+      box.append(el('div', 'jap-sub-formation-type', type[0]), el('div', 'jap-sub-hint', type[1]));
+      // Pictographs and simple signs are not built from parts, so their KanjiVG groups (行 → 彳…) are left out.
+      if ((info.type === 'compound' || info.type === 'phono') && info.parts.length) {
+        const parts = el('div', 'jap-sub-formation-parts');
+        info.parts.forEach((p, i) => {
+          if (i) parts.append(el('span', 'jap-sub-plus', '+'));
+          const chip = el('span', `jap-sub-part${p.role ? ` jap-sub-part-${p.role}` : ''}`);
+          chip.append(el('span', 'jap-sub-part-char', p.c));
+          const label = p.role === 'phon' ? [p.mn, 'дуудлага'].filter(Boolean).join(' · ') : p.mn;
+          if (label) chip.append(el('span', 'jap-sub-part-mn', label));
+          if (index.kanji.has(p.c)) {
+            chip.classList.add('jap-sub-clickable');
+            chip.addEventListener('click', () => openKanji(index.kanji.get(p.c)));
+          }
+          parts.append(chip);
+        });
+        box.append(parts);
+      }
+      out.push(box);
+    }
+    if (info.fam && info.fam.length > 1) {
+      const box = el('div', 'jap-sub-family');
+      box.append(el('div', 'jap-sub-hint', `${info.phon} хэсэгтэй, ойролцоо дуудлагатай ханз`));
+      const list = el('div', 'jap-sub-family-list');
+      for (const [c, on] of info.fam) {
+        const item = el('span', `jap-sub-family-item${c === info.k ? ' jap-sub-family-self' : ''}`);
+        item.append(el('span', 'jap-sub-family-char', c), el('span', 'jap-sub-family-on', on));
+        if (c !== info.k && index.kanji.has(c)) {
+          item.classList.add('jap-sub-clickable');
+          item.addEventListener('click', () => openKanji(index.kanji.get(c)));
+        }
+        list.append(item);
+      }
+      box.append(list);
       out.push(box);
     }
     return out;

@@ -53,3 +53,6 @@ console.log(`vendor/: kuromoji + dictionary; data/dict.json: ${kanji.length} kan
 
 // English fallback from JMdict, a separate layer (see build-fallback.js).
 require('./build-fallback')(ext);
+
+// Kanji readings, parts, phonetic families and stroke paths from KanjiVG + Kanjium, a separate layer (see build-kanji.js).
+require('./build-kanji')(ext, kanji);

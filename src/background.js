@@ -1,6 +1,7 @@
 // Background work for content.js, in the extension's own page:
 // - splits Japanese text into words with kuromoji (Firefox content scripts can't load its dictionary);
-// - looks up rare words in the full JMdict (English) when the per-tab subset has nothing.
+// - looks up rare words in the full JMdict (English) when the per-tab subset has nothing;
+// - hands out one kanji's readings, parts and stroke paths (data/kanji.json, 2.4 MB, loaded on first use).
 const api = globalThis.browser || globalThis.chrome;
 const L = globalThis.JapSubLookup;
 const FIELDS = ['surface_form', 'pos', 'pos_detail_1', 'pos_detail_2', 'basic_form', 'reading'];
@@ -18,6 +19,9 @@ const fullJmdict = () => (jmdict ||= load('data/fallback-full/parts.json')
   .then((lists) => L.fallbackIndex(lists.flat()))
   .catch(() => new Map()));
 
+let kanjiData = null;
+const kanjiInfo = () => (kanjiData ||= load('data/kanji.json').then((list) => new Map(list.map((e) => [e.k, e]))).catch(() => new Map()));
+
 api.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'tokenize') {
     return tokenizer.then((t) => msg.lines.map((line) => t.tokenize(line)
@@ -26,5 +30,6 @@ api.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'jmdict') {
     return fullJmdict().then((map) => L.rankFallback(msg.forms.map((f) => map.get(f)).find(Boolean) || [], msg.reading));
   }
+  if (msg.type === 'kanji') return kanjiInfo().then((map) => map.get(msg.kanji) || null);
   return undefined;
 });

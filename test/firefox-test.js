@@ -59,8 +59,24 @@ function devCopy() {
     await page.hover('.jap-sub-popup .jap-sub-k');
     await page.click('.jap-sub-popup .jap-sub-k');
     await page.waitForSelector('.jap-sub-big-kanji', { timeout: 5000 });
+    // Readings and stroke order arrive from the background page (data/kanji.json).
+    await page.waitForSelector('.jap-sub-strokes', { timeout: 10000 });
+    const strokes = await page.$$eval('.jap-sub-strokes-ink path', (p) => p.length);
+    const readings = await page.$eval('.jap-sub-readings', (e) => e.innerText.replace(/\s+/g, ' '));
     console.log('kanji view:', (await page.$eval('.jap-sub-popup', (e) => e.innerText)).split('\n').slice(0, 3).join(' | '));
+    console.log('kanji strokes:', strokes, '| readings:', readings);
+    // Jump to the end of the stroke animation (waiting is not possible: the fake video's line changes).
+    await page.evaluate(() => document.getAnimations().forEach((a) => a.finish()));
     await page.screenshot({ path: path.join(out, 'firefox-kanji.png') });
+    // A part of the kanji (危 → 厄) opens that kanji; "back" returns to the first one.
+    const partOk = !!(await page.$('.jap-sub-part.jap-sub-clickable'));
+    if (partOk) {
+      await page.click('.jap-sub-part.jap-sub-clickable');
+      await page.waitForFunction(() => document.querySelectorAll('.jap-sub-strokes').length === 1
+        && document.querySelector('.jap-sub-kanji-meanings').textContent !== 'аюултай', { timeout: 5000 });
+      await page.click('.jap-sub-back');
+    }
+    console.log('kanji part opens:', partOk);
     await page.click('.jap-sub-back');
     const backOk = !(await page.$('.jap-sub-big-kanji')) && !!(await page.$('.jap-sub-meanings'));
     // Leaving closes the popup and resumes playback.

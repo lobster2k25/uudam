@@ -125,5 +125,47 @@
     return pieces.map((p) => (KANJI.test(p) ? { text: p, rt: m[g++] } : { text: p }));
   }
 
-  return { buildIndex, fallbackIndex, rankFallback, segment, furigana, toHiragana };
+  // The reading each kanji has in this word, from its furigana and the kanji's jōyō readings:
+  // 学校 がっこう → 学 がっ (on), 校 こう (on). info: kanji → { on: [[r]], kun: [[stem, okurigana]] }.
+  // Returns kanji → { r, kind: 'on' | 'kun' }; kanji whose part can't be told apart (今日 きょう) are left out.
+  const VOICED = Object.fromEntries('かがきぎくぐけげこごさざしじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼ'
+    .match(/../g).map((p) => [p[0], [p[1]]]));
+  for (const [h, p] of ['はぱ', 'ひぴ', 'ふぷ', 'へぺ', 'ほぽ']) VOICED[h].push(p);
+  function kanjiReadings(ruby, info) {
+    const out = new Map();
+    const candidates = (k) => {
+      const i = info.get(k);
+      if (!i) return [];
+      const list = [
+        ...i.on.map((x) => ({ r: toHiragana(x[0]), kind: 'on' })),
+        ...i.kun.map((x) => ({ r: x[0].replace(/[-.]/g, ''), kind: 'kun' })).filter((c) => c.r),
+      ];
+      const more = [];
+      for (const c of list) {
+        for (const v of VOICED[c.r[0]] || []) more.push({ ...c, r: v + c.r.slice(1) }); // 時 じ → 年月日 ...び
+        if (c.kind === 'on' && /[つちくき]$/.test(c.r)) more.push({ ...c, r: `${c.r.slice(0, -1)}っ` }); // 学 がく → がっ
+      }
+      return [...list, ...more].sort((a, b) => b.r.length - a.r.length);
+    };
+    const split = (chars, rt) => {
+      if (!chars.length) return rt ? null : [];
+      if (chars[0] === '々') return null;
+      for (const c of candidates(chars[0])) {
+        if (!rt.startsWith(c.r)) continue;
+        const rest = split(chars.slice(1), rt.slice(c.r.length));
+        if (rest) return [c, ...rest];
+      }
+      return null;
+    };
+    for (const piece of ruby) {
+      if (!piece.rt || !KANJI.test(piece.text)) continue;
+      const chars = [...piece.text];
+      const found = split(chars, toHiragana(piece.rt));
+      if (!found) continue;
+      chars.forEach((k, i) => { if (!out.has(k)) out.set(k, found[i]); });
+    }
+    return out;
+  }
+
+  return { buildIndex, fallbackIndex, rankFallback, segment, furigana, toHiragana, kanjiReadings };
 });

@@ -28,6 +28,16 @@ kuromoji.builder({ dicPath: path.join(__dirname, '..', 'vendor', 'dict') }).buil
   assert.strictEqual(units[3].lookable, false);
   assert.strictEqual(rubyText(L.furigana('取り戻す', 'トリモドス')), '取(と)り戻(もど)す');
   assert.strictEqual(rubyText(L.furigana('見', 'ミ')), '見(み)');
+
+  // Which reading each kanji has in a word (data/kanji.json from build-kanji.js).
+  const kinfo = new Map(require('../data/kanji.json').map((e) => [e.k, e]));
+  const kr = (word, reading) => [...L.kanjiReadings(L.furigana(word, reading), kinfo)].map(([k, x]) => `${k}${x.r}${x.kind === 'on' ? '音' : '訓'}`).join(' ');
+  assert.strictEqual(kr('危ない', 'あぶない'), '危あぶ訓');
+  assert.strictEqual(kr('学校', 'がっこう'), '学がっ音 校こう音');
+  assert.strictEqual(kr('日本語', 'にほんご'), '日に音 本ほん音 語ご音');
+  assert.strictEqual(kr('山道', 'やまみち'), '山やま訓 道みち訓');
+  assert.strictEqual(kr('手紙', 'てがみ'), '手て訓 紙がみ訓'); // voiced: かみ → がみ
+  assert.strictEqual(kr('今日', 'きょう'), ''); // read as a whole word, no split
   assert.strictEqual(rubyText(L.furigana('テレビ', 'テレビ')), 'テレビ');
   assert.ok(seg('危ない').every((u) => u.kanji.every((k) => k.meanings_mn.length)));
   // Readings of words missing from the dictionary are given in dictionary form, not as conjugated.

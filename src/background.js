@@ -30,6 +30,9 @@ api.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'jmdict') {
     return fullJmdict().then((map) => L.rankFallback(msg.forms.map((f) => map.get(f)).find(Boolean) || [], msg.reading));
   }
-  if (msg.type === 'kanji') return kanjiInfo().then((map) => map.get(msg.kanji) || null);
+  // One kanji → its entry or null; a list → a list of entries/nulls in the same order.
+  if (msg.type === 'kanji') {
+    return kanjiInfo().then((map) => (Array.isArray(msg.kanji) ? msg.kanji.map((k) => map.get(k) || null) : map.get(msg.kanji) || null));
+  }
   return undefined;
 });

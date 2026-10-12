@@ -502,10 +502,22 @@
     // Kanji outside the jōyō set have no entry of ours; leave them out rather than show an empty row.
     const kanji = unit.kanji.filter((k) => k.meanings_mn.length);
     if (kanji.length) {
+      // The reading each kanji has in this word (危ない → 危 あぶ 訓), once the kanji layer has arrived.
+      needKanji(kanji.map((k) => k.kanji));
+      const known = new Map(kanji.map((k) => [k.kanji, kanjiInfo.get(k.kanji)]).filter(([, i]) => i));
+      const used = L.kanjiReadings(unit.ruby, known);
       const box = el('div', 'jap-sub-kanji');
       for (const k of kanji) {
         const row = el('div', 'jap-sub-kanji-row');
-        row.append(el('span', 'jap-sub-kanji-char', k.kanji), el('span', null, k.meanings_mn.join(', ')));
+        row.append(el('span', 'jap-sub-kanji-char', k.kanji));
+        const r = used.get(k.kanji);
+        if (r) {
+          const tag = el('span', 'jap-sub-kanji-used');
+          tag.append(el('span', 'jap-sub-reading', r.r), el('span', 'jap-sub-kanji-used-kind', r.kind === 'on' ? '音' : '訓'));
+          tag.title = r.kind === 'on' ? 'Хятад дуудлага (音)' : 'Япон дуудлага (訓)';
+          row.append(tag);
+        }
+        row.append(el('span', null, k.meanings_mn.join(', ')));
         if (index.kanji.has(k.kanji)) {
           row.classList.add('jap-sub-clickable');
           row.addEventListener('click', () => openKanji(k));
@@ -565,16 +577,21 @@
     phono: ['Утга-дуудлагын үсэг', 'Нэг хэсэг нь утгыг, нөгөө нь дуудлагыг заана.'],
   };
 
+  // Asks the background for kanji not seen yet; the popup is redrawn when they arrive.
+  function needKanji(chars) {
+    const todo = chars.filter((c) => !kanjiInfo.has(c));
+    if (!todo.length) return;
+    for (const c of todo) kanjiInfo.set(c, undefined); // asked
+    const view = views[views.length - 1];
+    api.runtime.sendMessage({ type: 'kanji', kanji: todo }).then((list) => {
+      todo.forEach((c, i) => kanjiInfo.set(c, (list && list[i]) || null));
+      if (popup && views[views.length - 1] === view) drawPopup();
+    }, () => todo.forEach((c) => kanjiInfo.set(c, null)));
+  }
+
   function kanjiView(k) {
     const out = [];
-    if (!kanjiInfo.has(k.kanji)) {
-      kanjiInfo.set(k.kanji, undefined); // asked
-      api.runtime.sendMessage({ type: 'kanji', kanji: k.kanji }).then((info) => {
-        kanjiInfo.set(k.kanji, info || null);
-        const view = views[views.length - 1];
-        if (popup && view && view.kanji === k) drawPopup();
-      }, () => kanjiInfo.set(k.kanji, null));
-    }
+    needKanji([k.kanji]);
     const info = kanjiInfo.get(k.kanji);
 
     const head = el('div', 'jap-sub-head jap-sub-kanji-head');

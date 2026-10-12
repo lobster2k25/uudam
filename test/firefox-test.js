@@ -54,6 +54,9 @@ function devCopy() {
     console.log('popup:', (await page.$eval('.jap-sub-popup', (e) => e.innerText)).split('\n').slice(0, 3).join(' | '));
     const pausedOnHover = await page.$eval('video', (v) => v.paused);
     console.log('video paused on hover:', pausedOnHover);
+    // Each kanji row shows the reading it has in this word (危ない → 危 あぶ 訓).
+    await page.waitForSelector('.jap-sub-kanji-used', { timeout: 10000 });
+    console.log('kanji row reading:', await page.$eval('.jap-sub-kanji-row', (e) => e.innerText.replace(/\s+/g, ' ')));
     await page.screenshot({ path: path.join(out, 'firefox-popup.png') });
     // A kanji in the popup opens that kanji; "back" returns to the word.
     await page.hover('.jap-sub-popup .jap-sub-k');

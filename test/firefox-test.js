@@ -121,6 +121,18 @@ function devCopy() {
     const missOk = logs.some((l) => l.includes('words not in the dictionary') && l.includes('齟齬'));
     console.log('caught from player:', caughtOk, '| whole-episode words logged:', missOk);
     if (!caughtOk || !missOk) failed = true;
+
+    // Another title starts (Netflix changes the address without reloading) and no Japanese file comes:
+    // the old file must go, and Netflix's own (non-Japanese) subtitles must show again.
+    console.log('--- another title');
+    await new Promise((r) => setTimeout(r, 16000)); // past the grace period for files caught just before a switch
+    await page2.evaluate(() => history.pushState(null, '', '/watch/789'));
+    await new Promise((r) => setTimeout(r, 1000));
+    const dropped = logs.some((l) => l.includes('dropped the previous title'));
+    const netflixShown = await page2.evaluate(() => !document.documentElement.classList.contains('jap-sub-active'));
+    const ourLine = await page2.$eval('.jap-sub-lines', (e) => e.textContent);
+    console.log('old file dropped:', dropped, '| Netflix subs shown:', netflixShown, '| our line empty:', ourLine === '');
+    if (!dropped || !netflixShown || ourLine !== '') failed = true;
   } catch (err) {
     failed = true;
     console.error('FAILED:', err.message);

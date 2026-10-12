@@ -24,8 +24,12 @@
   let waitingForTokens = false;
 
   const tracks = new Map(); // movieId → track list from inject.js
-  let loaded = { key: null, cues: [] }; // the subtitle track in use
+  // The subtitle track in use. `at`: when it arrived; `duration`: the video's length while it played, so
+  // another title playing (a different length) is noticed even if the address bar does not change.
+  let loaded = { key: null, cues: [] };
+  let next = null; // a file caught while this title already had one: usually the next episode's, fetched early
   let requested = null;
+  let drawing = false; // whether we draw the line now (Netflix's own subtitles are hidden only then)
 
   const root = document.createElement('div');
   root.id = 'jap-sub-root';
@@ -62,20 +66,47 @@
       else useSubs(msg.key, msg.text, 'from the track list');
     }
     // Netflix's own player downloaded a Japanese subtitle file (inject.js watches its requests).
-    if (msg.type === 'captured' && !(loaded.key && loaded.key.endsWith(':list'))) {
-      useSubs(`${currentMovie() || 'any'}:captured`, msg.text, 'caught from the player');
-      capturedAt = Date.now();
-    }
+    if (msg.type === 'captured' && !(loaded.key && loaded.key.endsWith(':list'))) takeCaptured(msg.text);
   });
 
-  let capturedAt = 0;
+  function parseSubs(text, cc) {
+    const cues = text.trimStart().startsWith('<') ? parseTtml(text, cc) : parseVtt(text, cc);
+    if (!cues.length) console.warn(`[jap-sub] could not read the subtitle file; it starts: ${text.slice(0, 200)}`);
+    return cues;
+  }
+
+  function takeCaptured(text) {
+    const cues = parseSubs(text, false);
+    if (!cues.length) return;
+    const key = `${currentMovie() || 'any'}:captured`;
+    // This title already has its file and the new one is a different script: Netflix fetched the next
+    // episode early. Keep it for when that episode starts. (Same lines = the viewer switched to/from CC.)
+    if (loaded.key === key && !loaded.provisional && !otherTitle(document.querySelector('video')) && !sameScript(loaded.cues, cues)) {
+      next = { cues, at: Date.now() };
+      console.info(`[jap-sub] caught another title's subtitle file (${cues.length} cues, probably the next episode); kept for when it starts`);
+      return;
+    }
+    useCues(key, cues, 'caught from the player');
+  }
+
+  // Whether two files share many lines (Japanese characters only), i.e. are the same episode.
+  function sameScript(a, b) {
+    const lines = (cues) => new Set(cues.flatMap((c) => c.text.split('\n')).map((l) => l.replace(/[^぀-ヿ㐀-鿿]/g, '')).filter((l) => l.length >= 4));
+    const x = lines(a);
+    const y = lines(b);
+    let common = 0;
+    for (const l of x) if (y.has(l)) common++;
+    return common / Math.max(1, Math.min(x.size, y.size)) > 0.3;
+  }
 
   function useSubs(key, text, how) {
-    const cc = key.includes('#cc');
-    const cues = text.trimStart().startsWith('<') ? parseTtml(text, cc) : parseVtt(text, cc);
-    if (!cues.length) { console.warn(`[jap-sub] could not read the subtitle file; it starts: ${text.slice(0, 200)}`); return; }
+    const cues = parseSubs(text, key.includes('#cc'));
+    if (cues.length) useCues(key, cues, how);
+  }
+
+  function useCues(key, cues, how) {
     console.info(`[jap-sub] Japanese subtitles loaded (${how}): ${cues.length} cues`);
-    loaded = { key, cues };
+    loaded = { key, cues, at: Date.now(), duration: null, provisional: false };
     // The whole track in one go, and every word we lack in it goes to the missing-word list.
     const lines = cues.flatMap((c) => c.text.split('\n'));
     tokenize(lines).then(() => logMisses(lines));
@@ -97,12 +128,38 @@
     return t && { key: `${id || 'any'}:${t.language}${t.cc ? '#cc' : ''}:list`, url: t.url };
   }
 
-  function syncTrack() {
-    const id = currentMovie() || 'any';
-    // A file caught just before the URL switched to the next episode belongs to the new one.
-    if (loaded.key && loaded.key.endsWith(':captured') && !loaded.key.startsWith(`${id}:`)) {
-      loaded = Date.now() - capturedAt < 15000 ? { ...loaded, key: `${id}:captured` } : { key: null, cues: [] };
+  // True when the video is plainly not the one the loaded file was used with (its length differs).
+  function otherTitle(video) {
+    const d = video && video.duration;
+    if (!loaded.cues.length || !Number.isFinite(d) || d <= 0) return false;
+    if (loaded.duration == null) { loaded.duration = d; return false; }
+    return Math.abs(d - loaded.duration) > 2;
+  }
+
+  // Another title started (new /watch id, or a video of another length): the loaded file must not follow it.
+  function titleChanged(id, video) {
+    const switched = !loaded.key.startsWith(`${id}:`);
+    if (!switched && !otherTitle(video)) return;
+    const key = `${id}:captured`;
+    if (next && id !== 'any') {
+      loaded = { key, cues: next.cues, at: Date.now(), duration: null, provisional: true };
+      console.info(`[jap-sub] another title started; using the subtitle file caught for it earlier (${next.cues.length} cues)`);
+    } else if (Date.now() - loaded.at < 15000) {
+      // Caught just before the switch, so it belongs to the new title.
+      loaded = { ...loaded, key, duration: null, provisional: true };
+    } else if (switched) {
+      console.info('[jap-sub] another title started; dropped the previous title\'s subtitles');
+      loaded = { key: null, cues: [] };
+    } else {
+      return; // same address, other length (an ad?): the file is only set aside, see currentText()
     }
+    next = null;
+  }
+
+  function syncTrack(video) {
+    const id = currentMovie() || 'any';
+    if (loaded.key && loaded.key.endsWith(':captured')) titleChanged(id, video);
+    if (id === 'any') next = null;
     const t = wantedTrack();
     if (!t) {
       if (loaded.key && !loaded.key.startsWith(`${id}:`)) loaded = { key: null, cues: [] };
@@ -178,13 +235,17 @@
   }
 
   function currentText(video) {
-    if (loaded.cues.length) {
+    if (loaded.cues.length && !otherTitle(video)) {
+      drawing = true;
       const t = video.currentTime;
       return loaded.cues.filter((c) => c.start <= t && t < c.end).map((c) => c.text).join('\n');
     }
-    // No subtitle file: fall back to whatever Netflix is drawing (works for text subtitles only).
+    // No subtitle file: fall back to whatever Netflix is drawing (works for text subtitles only), but
+    // only Japanese; anything else stays Netflix's own.
     const box = document.querySelector('.player-timedtext');
-    return box ? box.innerText.split('\n').map((l) => cleanLine(l, false)).filter(Boolean).join('\n') : '';
+    const text = box ? box.innerText.split('\n').map((l) => cleanLine(l, false)).filter(Boolean).join('\n') : '';
+    drawing = /[぀-ヿ㐀-鿿]/.test(text);
+    return drawing ? text : '';
   }
 
   // ---------- drawing ----------
@@ -233,13 +294,14 @@
     if (root.parentElement !== host) host.appendChild(root);
     toggle.classList.toggle('jap-sub-off', !settings.enabled);
     toggle.classList.toggle('jap-sub-visible', hovering || Date.now() - mouseMovedAt < 3000);
-    document.documentElement.classList.toggle('jap-sub-active', settings.enabled);
     if (!settings.enabled) {
+      document.documentElement.classList.remove('jap-sub-active');
       if (shownText !== '') render('');
       return;
     }
-    syncTrack();
+    syncTrack(video);
     const text = currentText(video);
+    document.documentElement.classList.toggle('jap-sub-active', drawing);
     if (text !== shownText) render(text);
   }
 

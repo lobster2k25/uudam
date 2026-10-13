@@ -22,6 +22,7 @@
       }
     }
   },
+  "minimum_chrome_version": "111",
   "permissions": [
     "storage"
   ],
@@ -30,7 +31,8 @@
       "vendor/kuromoji.js",
       "src/lookup.js",
       "src/background.js"
-    ]
+    ],
+    "service_worker": "src/sw.js"
   },
   "host_permissions": [
     "*://www.netflix.com/*"

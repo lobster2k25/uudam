@@ -1,4 +1,4 @@
-// Background work for content.js, in the extension's own page:
+// Background work for content.js, in the extension's background page (Firefox) or service worker (Chrome, see sw.js):
 // - splits Japanese text into words with kuromoji (Firefox content scripts can't load its dictionary);
 // - looks up rare words in the full JMdict (English) when the per-tab subset has nothing;
 // - hands out one kanji's readings, parts and stroke paths (data/kanji.json, 2.4 MB, loaded on first use).
@@ -22,17 +22,20 @@ const fullJmdict = () => (jmdict ||= load('data/fallback-full/parts.json')
 let kanjiData = null;
 const kanjiInfo = () => (kanjiData ||= load('data/kanji.json').then((list) => new Map(list.map((e) => [e.k, e]))).catch(() => new Map()));
 
-api.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'tokenize') {
-    return tokenizer.then((t) => msg.lines.map((line) => t.tokenize(line)
-      .map((tok) => Object.fromEntries(FIELDS.map((f) => [f, tok[f]])))));
-  }
-  if (msg.type === 'jmdict') {
-    return fullJmdict().then((map) => L.rankFallback(msg.forms.map((f) => map.get(f)).find(Boolean) || [], msg.reading));
-  }
+const handlers = {
+  tokenize: (msg) => tokenizer.then((t) => msg.lines.map((line) => t.tokenize(line)
+    .map((tok) => Object.fromEntries(FIELDS.map((f) => [f, tok[f]]))))),
+  jmdict: (msg) => fullJmdict().then((map) => L.rankFallback(msg.forms.map((f) => map.get(f)).find(Boolean) || [], msg.reading)),
   // One kanji → its entry or null; a list → a list of entries/nulls in the same order.
-  if (msg.type === 'kanji') {
-    return kanjiInfo().then((map) => (Array.isArray(msg.kanji) ? msg.kanji.map((k) => map.get(k) || null) : map.get(msg.kanji) || null));
-  }
-  return undefined;
+  kanji: (msg) => kanjiInfo().then((map) => (Array.isArray(msg.kanji) ? msg.kanji.map((k) => map.get(k) || null) : map.get(msg.kanji) || null)),
+};
+
+// Answers through sendResponse, wrapped as { value } or { error } (content.js's ask() unwraps it): Chrome does
+// not take a returned Promise as the answer, Firefox takes both.
+api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  const handle = handlers[msg.type];
+  if (!handle) return undefined;
+  handle(msg).then((value) => sendResponse({ value }),
+    (err) => sendResponse({ error: err && err.message ? err.message : String(err) }));
+  return true;
 });

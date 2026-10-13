@@ -18,11 +18,11 @@
     window.browser = {
       runtime: {
         getURL: (p) => '/' + p,
-        // Stands in for src/background.js.
+        // Stands in for src/background.js (tokenize only), which answers { value } or { error }.
         sendMessage: async (msg) => {
           const t = await (window.tokenizer ||= new Promise((resolve, reject) => kuromoji.builder({ dicPath: '/vendor/dict/' })
             .build((err, tk) => (err ? reject(err) : resolve(tk)))));
-          return msg.lines.map((line) => t.tokenize(line));
+          return { value: msg.lines.map((line) => t.tokenize(line)) };
         },
       },
       storage: {

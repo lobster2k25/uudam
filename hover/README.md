@@ -36,3 +36,17 @@ Firefox 142+); `test/chromium-test.js` shows it also runs in Chromium with a ser
 
 Code: MIT (`../LICENSE`). Bundled data: as in uudam (JMdict © EDRDG, CC BY-SA 4.0; mongol-dict, CC BY-SA 4.0;
 kuromoji.js and its dictionary, Apache 2.0).
+
+## Building the addons.mozilla.org package
+
+Build uudam's package first (see "Building the addons.mozilla.org package" in `../README.md`, up to and
+including `node build.js`), then:
+
+```sh
+cd hover && node build.js
+npx web-ext build --source-dir . --ignore-files test build.js README.md
+```
+
+The zip lands in `hover/web-ext-artifacts/`. It holds `src/` (our code, not minified), `vendor/kuromoji.js` and
+`vendor/dict/` (kuromoji with the two changes `../build.js` makes, described in `../README.md`),
+`vendor/lookup.js` (a plain copy of `../src/lookup.js`), and `data/` (JSON only: our Mongolian dictionary and JMdict).

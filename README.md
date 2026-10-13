@@ -47,7 +47,7 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
 - `node test/chrome-test.js` — the same checks (`test/checks.js`) in headless Chrome. `CHROME=` picks the browser;
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
-- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
+- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
 ## License
 
@@ -66,8 +66,12 @@ git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict check
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js
-npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules
+npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js package.json package-lock.json node_modules
 ```
+
+For the Chrome Web Store, after `node build.js` run `node build-chrome.js`. It writes `web-ext-artifacts/uudam-chrome-<version>.zip`
+(upload this) and `web-ext-artifacts/chrome/` (the same files, to try with Load unpacked). Its manifest leaves out what only
+Firefox reads, so Chrome shows no warnings.
 
 What `build.js` produces:
 

@@ -4,6 +4,11 @@
 (() => {
   const api = globalThis.browser || globalThis.chrome;
   const L = globalThis.JapSubLookup;
+  // A request to background.js, which answers { value } or { error }.
+  const ask = (msg) => api.runtime.sendMessage(msg).then((r) => {
+    if (!r || 'error' in r) throw new Error(r ? r.error : 'no answer from the background script');
+    return r.value;
+  });
   const TAG = 'jap-sub:';
   const POS_MN = {
     noun: 'нэр үг', pronoun: 'төлөөний үг', verb: 'үйл үг', 'adj-i': 'тэмдэг нэр (い)', 'adj-na': 'тэмдэг нэр (な)',
@@ -310,7 +315,7 @@
     const todo = [...new Set(lines)].filter((l) => l && !tokens.has(l) && !pending.has(l));
     if (!todo.length) return Promise.resolve();
     todo.forEach((l) => pending.add(l));
-    return api.runtime.sendMessage({ type: 'tokenize', lines: todo }).then((result) => {
+    return ask({ type: 'tokenize', lines: todo }).then((result) => {
       todo.forEach((l, i) => { tokens.set(l, result[i]); pending.delete(l); });
       if (waitingForTokens) shownText = null;
     }, (err) => {
@@ -542,7 +547,7 @@
   function fallbackView(unit) {
     if (!unit.fallback.length && !unit.askedFull) {
       unit.askedFull = true;
-      api.runtime.sendMessage({ type: 'jmdict', forms: [unit.form, unit.surface], reading: unit.reading }).then((found) => {
+      ask({ type: 'jmdict', forms: [unit.form, unit.surface], reading: unit.reading }).then((found) => {
         if (!found || !found.length) return;
         unit.fallback = found;
         const view = views[views.length - 1];
@@ -585,7 +590,7 @@
     if (!todo.length) return;
     for (const c of todo) kanjiInfo.set(c, undefined); // asked
     const view = views[views.length - 1];
-    api.runtime.sendMessage({ type: 'kanji', kanji: todo }).then((list) => {
+    ask({ type: 'kanji', kanji: todo }).then((list) => {
       todo.forEach((c, i) => kanjiInfo.set(c, (list && list[i]) || null));
       if (popup && views[views.length - 1] === view) drawPopup();
     }, () => todo.forEach((c) => kanjiInfo.set(c, null)));

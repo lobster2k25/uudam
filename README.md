@@ -1,7 +1,7 @@
 # Uudam – Netflix Subtitles (browser extension)
 
 Japanese subtitles on Netflix with furigana; click a word for its Mongolian meaning and kanji breakdown.
-Firefox first (Manifest V3, Firefox 142+). Chrome would need the background script turned into a service worker.
+Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 
 ## Build and load in Firefox
 
@@ -17,12 +17,18 @@ Firefox first (Manifest V3, Firefox 142+). Chrome would need the background scri
 If nothing appears: click the Uudam toolbar icon. If it shows **Зөвшөөрөх**, Firefox is withholding the
 netflix.com permission — click it. Errors show in the Netflix tab's console with the prefix `[jap-sub]`.
 
+### Chrome
+
+Do steps 1 and 2 above, then Chrome → `chrome://extensions` → turn on **Developer mode** → **Load unpacked** →
+pick this folder. Chrome keeps it after a restart. Chrome warns about `browser_specific_settings` (Firefox's
+key); that is fine.
+
 ## How it works
 
 | File | Role |
 |------|------|
 | `src/inject.js` | Runs inside Netflix's page. Adds the WebVTT profile to the player's manifest request, reports the subtitle tracks, downloads one when asked |
-| `src/background.js` | Runs kuromoji (splits Japanese into words). It lives here because Firefox content scripts can't load kuromoji's dictionary |
+| `src/background.js` | Runs kuromoji (splits Japanese into words). It lives here because Firefox content scripts can't load kuromoji's dictionary. Firefox runs it as a background page (manifest `scripts`), Chrome as a service worker (`src/sw.js` loads the same files). Chrome stops the worker when idle; the next line then waits about a second while kuromoji loads again |
 | `src/content.js` | Picks the Japanese track, keeps it in sync with `video.currentTime`, draws the line with furigana; hovering the subtitles pauses the video, resting on a word opens its popup (kanji in it open the kanji's entry); on/off button 字 and Alt+J; logs words missing from our dictionary |
 | `src/lookup.js` | Pure logic: joins kuromoji tokens into learner-sized words (食べ+て+い+た → 食べる), dictionary lookup, furigana |
 | `build-fallback.js` | English fallback from JMdict (© EDRDG, CC BY-SA 4.0) for words without a Mongolian entry: a 37k-word subset per tab, the full 219k set in the background on demand. A separate layer: never copied into `mongol-dict/ja-mn` |
@@ -39,7 +45,9 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   content script with a fake subtitle track, to check the overlay and popup without Netflix.
 - `npm install` once, then `node test/firefox-test.js` — installs the extension into headless Firefox and checks the
   fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
-- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules` — Mozilla's checks (currently 0 warnings).
+- `node test/chrome-test.js` — the same checks (`test/checks.js`) in headless Chrome. `CHROME=` picks the browser;
+  on Linux as root add `CHROME_ARGS=--no-sandbox`.
+- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
 ## License
 

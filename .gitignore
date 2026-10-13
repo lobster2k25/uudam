@@ -3,3 +3,5 @@ data/
 node_modules/
 web-ext-artifacts/
 test/out/
+hover/icons/
+hover/test/out/

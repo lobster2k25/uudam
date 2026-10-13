@@ -20,8 +20,8 @@ netflix.com permission — click it. Errors show in the Netflix tab's console wi
 ### Chrome
 
 Do steps 1 and 2 above, then Chrome → `chrome://extensions` → turn on **Developer mode** → **Load unpacked** →
-pick this folder. Chrome keeps it after a restart. Chrome warns about `browser_specific_settings` (Firefox's
-key); that is fine.
+pick this folder. Chrome keeps it after a restart. Chrome warns about `background.scripts` and
+`browser_specific_settings`, which are there for Firefox; that is fine.
 
 ## How it works
 

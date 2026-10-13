@@ -88,9 +88,17 @@ const server = http.createServer((req, res) => {
     check('図書館 highlighted', (await highlighted()) === '図書館', await highlighted());
     await page.screenshot({ path: path.join(out, 'hover-library.png') });
 
-    await point('#p1', '強');
+    // Another word in the same sentence: its words are already known, so no wait for the background.
+    const p1 = await charPos('#p1', '強');
+    await page.keyboard.down('Shift');
+    const t0 = Date.now();
+    await page.mouse.move(p1.x, p1.y);
+    await page.waitForFunction(() => /study/.test(document.querySelector('uudam-hover')?.shadowRoot.querySelector('.box').innerText || ''), { timeout: 5000 }).catch(() => {});
+    const ms = Date.now() - t0;
+    await page.keyboard.up('Shift');
     t = await popupText();
     check('勉強 popup (moved to the next word)', /study/.test(t || ''), t);
+    check('next word in the same sentence is quick', ms < 150, `${ms} ms`);
 
     // 読ん is in <b>, its ending で is outside: one word across two text nodes, shown as 読む.
     await point('#p2', '読');

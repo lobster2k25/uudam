@@ -6,7 +6,7 @@
   window.uudamHover = true;
   const api = globalThis.browser || globalThis.chrome;
   const JAPANESE = /[぀-ヿ㐀-鿿豈-﫿々〆ｦ-ﾟ]/;
-  const CONTEXT = 40; // characters sent on each side of the mouse
+  const CONTEXT = 120; // at most this many characters of the sentence on each side of the mouse
   const STOPS = /[。！？!?\n]/; // the context is cut at sentence ends
   const SKIP = 'rt, rp, script, style, noscript, textarea, input, select, [contenteditable=""], [contenteditable="true"]';
   const JM_POS = {
@@ -17,9 +17,11 @@
   const posLabel = (code) => (/^v/.test(code) ? 'verb' : /^aux/.test(code) ? 'auxiliary' : JM_POS[code] || '');
 
   let mouse = null; // last mouse position { x, y }
-  let shown = null; // { key, ranges, rects } of the word in the popup
-  let asked = null; // key of the lookup in flight
-  let timer = null;
+  let shown = null; // { ranges, rects } of the word in the popup
+  let want = null; // { ctx, offset } the mouse is on now, while its sentence is being looked up
+  let frame = 0;
+  // Sentence text → its words from the background. Moving within a sentence then needs no round trip.
+  const sentences = new Map();
   let host = null;
   let box = null;
 
@@ -68,29 +70,39 @@
   // The text around the mouse as one string, with a map back to the page's text nodes.
   // Returns { text, offset, pieces: [{ node, at }] } where `at` is where the node's text starts in `text`.
   function contextAt(hit) {
-    const nodes = [];
+    // Walk outwards from the mouse's text node until there is enough text on each side (not the whole
+    // block: on some pages that is the whole page).
     const walker = document.createTreeWalker(blockOf(hit.node), NodeFilter.SHOW_TEXT, {
       acceptNode: (n) => (n.parentElement && !n.parentElement.closest(SKIP) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
     });
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
-    let i = nodes.indexOf(hit.node);
-    if (i < 0) { nodes.splice(0, nodes.length, hit.node); i = 0; }
-    // Walk outwards from the mouse until there is enough text on each side.
-    let first = i;
+    const nodes = [hit.node];
     let before = hit.offset;
-    while (first > 0 && before < CONTEXT) before += nodes[--first].data.length;
-    let last = i;
+    walker.currentNode = hit.node;
+    // A node with a sentence end is the last one taken (the sentence is cut out of the text below).
+    for (let n = hit.node; before < CONTEXT && !STOPS.test(n.data.slice(0, n === hit.node ? hit.offset : undefined));) {
+      n = walker.previousNode();
+      if (!n) break;
+      nodes.unshift(n);
+      before += n.data.length;
+    }
     let after = hit.node.data.length - hit.offset;
-    while (last < nodes.length - 1 && after < CONTEXT) after += nodes[++last].data.length;
+    walker.currentNode = hit.node;
+    for (let n = hit.node; after < CONTEXT && !STOPS.test(n.data.slice(n === hit.node ? hit.offset : 0));) {
+      n = walker.nextNode();
+      if (!n) break;
+      nodes.push(n);
+      after += n.data.length;
+    }
 
     let text = '';
     const pieces = [];
-    for (let j = first; j <= last; j++) {
-      pieces.push({ node: nodes[j], at: text.length });
-      text += nodes[j].data;
+    for (const n of nodes) {
+      pieces.push({ node: n, at: text.length });
+      text += n.data;
     }
     let offset = pieces.find((p) => p.node === hit.node).at + hit.offset;
-    // Trim to CONTEXT characters each side, then to the sentence the mouse is in.
+    // The sentence the mouse is in (at most CONTEXT characters each side), so the text stays the same
+    // while the mouse moves along it and its words can be reused.
     let from = Math.max(0, offset - CONTEXT);
     let to = Math.min(text.length, offset + CONTEXT);
     for (let k = offset - 1; k >= from; k--) if (STOPS.test(text[k])) { from = k + 1; break; }
@@ -121,28 +133,37 @@
   function lookAt(x, y) {
     if (host && host.contains(document.elementFromPoint(x, y))) return;
     const hit = charAt(x, y);
-    if (!hit) return;
+    if (!hit) { want = null; return; }
     if (shown && shown.ranges.some((r) => r.startContainer === hit.node && hit.offset >= r.startOffset && hit.offset < r.endOffset)) return;
     const ctx = contextAt(hit);
-    const key = `${ctx.text}\u0000${ctx.offset}`;
-    if (asked === key) return;
-    asked = key;
-    api.runtime.sendMessage({ type: 'hover-lookup', text: ctx.text, offset: ctx.offset }).then((word) => {
-      if (asked !== key) return; // the mouse has moved on
-      asked = null;
-      if (!word) return;
-      const ranges = rangesFor(ctx, word.start, word.end);
-      if (!ranges.length) return;
-      show(word, ranges, key);
-    }, () => { if (asked === key) asked = null; });
+    const words = sentences.get(ctx.text);
+    if (Array.isArray(words)) { showAt(ctx, words, ctx.offset); return; }
+    want = { ctx, offset: ctx.offset };
+    if (words) return; // already asked
+    sentences.set(ctx.text, 'asked');
+    if (sentences.size > 200) sentences.delete(sentences.keys().next().value);
+    api.runtime.sendMessage({ type: 'hover-words', text: ctx.text }).then((list) => {
+      sentences.set(ctx.text, list || []);
+      // Show the word the mouse is on by now, if it is still in this sentence.
+      if (want && want.ctx.text === ctx.text) showAt(want.ctx, list || [], want.offset);
+    }, () => sentences.delete(ctx.text));
   }
 
+  function showAt(ctx, words, offset) {
+    want = null;
+    const word = words.find((w) => offset >= w.start && offset < w.end);
+    if (!word) return;
+    const ranges = rangesFor(ctx, word.start, word.end);
+    if (ranges.length) show(word, ranges);
+  }
+
+  // At most one lookup per animation frame.
   function schedule() {
-    if (timer) return;
-    timer = setTimeout(() => {
-      timer = null;
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
       if (mouse) lookAt(mouse.x, mouse.y);
-    }, 40);
+    });
   }
 
   // ---------- popup ----------
@@ -177,7 +198,7 @@
     return e;
   }
 
-  function show(word, ranges, key) {
+  function show(word, ranges) {
     if (!host) {
       host = document.createElement('uudam-hover');
       const shadow = host.attachShadow({ mode: 'open' });
@@ -222,7 +243,7 @@
 
     highlight(ranges);
     const rects = ranges.flatMap((r) => [...r.getClientRects()]);
-    shown = { key, ranges, rects };
+    shown = { ranges, rects };
     place(rects);
   }
 
@@ -243,7 +264,7 @@
     if (host) host.remove();
     highlight([]);
     shown = null;
-    asked = null;
+    want = null;
   }
 
   // The word's highlight: the CSS Custom Highlight API leaves the page's DOM and selection alone.

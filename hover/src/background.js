@@ -19,21 +19,21 @@ const index = Promise.all([
     .then((lists) => lists.flat()),
 ]).then(([dict, jmdict]) => L.buildIndex(dict, jmdict));
 
-// text: a stretch of page text; offset: the character under the mouse. Returns the word there, or null.
-async function lookup(text, offset) {
+// All the words in a stretch of page text (one sentence): [{ start, end, surface, form, reading, english,
+// mongolian, parts }]. The page keeps them, so moving the mouse along the sentence needs no new lookup.
+async function words(text) {
   const [t, idx] = await Promise.all([tokenizer, index]);
   const tokens = t.tokenize(text);
-  const units = L.segment(tokens, idx);
+  const out = [];
   let start = 0;
-  for (const unit of units) {
+  for (const unit of L.segment(tokens, idx)) {
     const end = start + unit.surface.length;
-    if (offset < end) {
-      if (!unit.lookable || text.slice(start, end) !== unit.surface) return null;
+    if (unit.lookable && text.slice(start, end) === unit.surface) {
       // English for every word, not only those without a Mongolian entry (as in uudam).
       let english = L.rankFallback(idx.fallback.get(unit.form) || idx.fallback.get(unit.surface) || [], unit.reading);
-      // A phrase only our dictionary has (いい天気): English for the word under the mouse inside it (天気).
-      if (!english.length) english = englishInside(tokens, offset, idx);
-      return {
+      // A phrase only our dictionary has (いい天気): English for its main word (天気).
+      if (!english.length) english = englishInside(tokens, start, end, idx);
+      out.push({
         start,
         end,
         surface: unit.surface,
@@ -42,28 +42,34 @@ async function lookup(text, offset) {
         english,
         mongolian: unit.entries.map((e) => e.meanings_mn),
         parts: unit.parts.map((p) => p.surface),
-      };
+      });
     }
     start = end;
   }
-  return null;
+  return out;
 }
 
-function englishInside(tokens, offset, idx) {
+// The first token inside start..end that JMdict knows (いい天気 → 天気 when いい has no entry of its own).
+function englishInside(tokens, start, end, idx) {
   let at = 0;
+  let best = [];
   for (const t of tokens) {
+    const from = at;
     at += t.surface_form.length;
-    if (offset >= at) continue;
+    if (from < start || at > end) continue;
     const reading = t.reading && t.reading !== '*' ? L.toHiragana(t.reading) : null;
     const base = t.basic_form && t.basic_form !== '*' ? t.basic_form : t.surface_form;
-    return L.rankFallback(idx.fallback.get(base) || idx.fallback.get(t.surface_form) || [], reading);
+    const found = L.rankFallback(idx.fallback.get(base) || idx.fallback.get(t.surface_form) || [], reading);
+    // Prefer a token with kanji: the content word, not a particle or いい.
+    if (found.length && (!best.length || /[㐀-鿿]/.test(t.surface_form))) best = found;
+    if (best.length && /[㐀-鿿]/.test(t.surface_form)) break;
   }
-  return [];
+  return best;
 }
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type !== 'hover-lookup') return undefined;
-  lookup(msg.text, msg.offset).then(sendResponse, (err) => {
+  if (msg.type !== 'hover-words') return undefined;
+  words(msg.text).then(sendResponse, (err) => {
     console.error(`[uudam-hover] ${err && err.message ? err.message : err}`);
     sendResponse(null);
   });

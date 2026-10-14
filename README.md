@@ -49,6 +49,10 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
 - `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
+## Privacy
+
+Uudam collects nothing and sends nothing. Settings and the missing-word list stay in your browser. See [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 Code: MIT (`LICENSE`). Bundled data, built by `build.js` and not committed:

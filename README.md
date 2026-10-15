@@ -9,6 +9,7 @@ Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 2. Here: `node build.js` — fills `vendor/` (kuromoji + its 17 MB dictionary), `data/dict.json` (our kanji
    and words) and the JMdict fallback (`data/fallback.json`, `data/fallback-full/`, needs `sources/JMdict_e` from
    `fetch-sources.sh`). Re-run whenever the dictionary changes. Both folders are generated and not committed.
+   `node rebuild-all.js` does it all at once: pulls `../mongol-dict`, builds uudam, then builds `hover/`.
 3. Firefox → `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick `manifest.json`.
    Temporary add-ons are removed when Firefox closes; load again next time.
 4. Open a Netflix title, turn Netflix's subtitles to **Japanese** (or leave them off — we fetch the Japanese
@@ -47,7 +48,7 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
 - `node test/chrome-test.js` — the same checks (`test/checks.js`) in headless Chrome. `CHROME=` picks the browser;
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
-- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
+- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
 ## Privacy
 
@@ -66,11 +67,11 @@ English fallback from JMdict © EDRDG (CC BY-SA 4.0); kanji readings and formati
 Needs Node 20+, npm, git, curl, gunzip (Linux, macOS, or Git Bash on Windows).
 
 ```sh
-git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.4.0
+git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.5.0
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js
-npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js package.json package-lock.json node_modules
+npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules
 ```
 
 For the Chrome Web Store, after `node build.js` run `node build-chrome.js`. It writes `web-ext-artifacts/uudam-chrome-<version>.zip`

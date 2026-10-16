@@ -71,7 +71,7 @@ English fallback from JMdict © EDRDG (CC BY-SA 4.0); kanji readings and formati
 Needs Node 20+, npm, git, curl, gunzip (Linux, macOS, or Git Bash on Windows).
 
 ```sh
-git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.5.0
+git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.5.2
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js

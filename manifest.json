@@ -30,12 +30,18 @@
     "scripts": [
       "vendor/kuromoji.js",
       "src/lookup.js",
+      "src/dict-update.js",
       "src/background.js"
     ],
     "service_worker": "src/sw.js"
   },
   "host_permissions": [
     "*://www.netflix.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://github.com/lobster2k25/mongol-dict/*",
+    "https://release-assets.githubusercontent.com/*",
+    "https://objects.githubusercontent.com/*"
   ],
   "content_scripts": [
     {

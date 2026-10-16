@@ -37,3 +37,14 @@ $('copy').addEventListener('click', () => navigator.clipboard.writeText(
   sorted.map(([form, m]) => [form, m.reading || '', m.count, m.line].join('\t')).join('\n'),
 ));
 $('clear').addEventListener('click', () => api.storage.local.set({ misses: {} }).then(() => showMisses({})));
+
+// Dictionary version and updates (src/dict-panel.js); background.js answers { value } or { error }.
+UudamDictPanel($('dict'), {
+  ask: (type) => api.runtime.sendMessage({ type }).then((r) => {
+    if (!r || 'error' in r) throw new Error(r ? r.error : 'no answer');
+    return r.value;
+  }),
+  info: 'dictInfo',
+  update: 'dictUpdate',
+  done: 'Netflix-ийн хуудсаа дахин ачаалбал шинэ үгс гарна.',
+});

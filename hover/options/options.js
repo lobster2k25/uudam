@@ -100,3 +100,11 @@ $('tags').addEventListener('change', () => { settings.tags = $('tags').value.tri
     try { await load(); } catch (e) { status(`${e.message} (settings kept)`, 'error'); }
   }
 })();
+
+// Dictionary version and updates (vendor/dict-panel.js); background.js answers with the value itself.
+UudamDictPanel($('dict'), {
+  ask: (type) => api.runtime.sendMessage({ type }),
+  info: 'dict-info',
+  update: 'dict-update',
+  done: 'Дараагийн хайлтаас шинэ үгс гарна.',
+});

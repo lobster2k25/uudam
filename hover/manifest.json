@@ -26,12 +26,16 @@
     "storage"
   ],
   "optional_host_permissions": [
-    "http://127.0.0.1:8765/*"
+    "http://127.0.0.1:8765/*",
+    "https://github.com/lobster2k25/mongol-dict/*",
+    "https://release-assets.githubusercontent.com/*",
+    "https://objects.githubusercontent.com/*"
   ],
   "background": {
     "scripts": [
       "vendor/kuromoji.js",
       "vendor/lookup.js",
+      "vendor/dict-update.js",
       "src/anki.js",
       "src/background.js"
     ]

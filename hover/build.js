@@ -16,8 +16,11 @@ if (missing.length) throw new Error(`missing in uudam: ${missing.join(', ')} (ru
 for (const dir of ['vendor', 'data', 'icons']) fs.rmSync(path.join(hover, dir), { recursive: true, force: true });
 fs.cpSync(path.join(uudam, 'vendor'), path.join(hover, 'vendor'), { recursive: true });
 fs.copyFileSync(path.join(uudam, 'src', 'lookup.js'), path.join(hover, 'vendor', 'lookup.js'));
+// Dictionary updates from GitHub releases, shared with uudam (background script + the options page box).
+for (const f of ['dict-update.js', 'dict-panel.js']) fs.copyFileSync(path.join(uudam, 'src', f), path.join(hover, 'vendor', f));
 fs.mkdirSync(path.join(hover, 'data'));
 fs.copyFileSync(path.join(uudam, 'data', 'dict.json'), path.join(hover, 'data', 'dict.json'));
+fs.copyFileSync(path.join(uudam, 'data', 'dict-version.json'), path.join(hover, 'data', 'dict-version.json'));
 fs.cpSync(path.join(uudam, 'data', 'fallback-full'), path.join(hover, 'data', 'fallback-full'), { recursive: true });
 fs.cpSync(path.join(uudam, 'icons'), path.join(hover, 'icons'), { recursive: true });
 const kanji = buildKanji();

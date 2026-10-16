@@ -14,6 +14,8 @@
     .buttons { display: flex; gap: 8px; margin-top: 8px; }
     button { font: inherit; padding: 4px 10px; }
     .credit { margin: 12px 0 0; font-size: 11px; color: #888; }
+    .dict-status, .dict-note { font-size: 12px; color: #555; margin-top: 4px; }
+    .dict-note { color: #888; }
   </style>
 </head>
 <body>
@@ -27,7 +29,11 @@
     <button id="copy">Хуулах</button>
     <button id="clear">Цэвэрлэх</button>
   </div>
+  <h2>Толь бичиг</h2>
+  <div id="dict"></div>
   <p class="credit">Монгол тайлбаргүй үгэнд англи тайлбар: JMdict © EDRDG, CC BY-SA 4.0</p>
+  <script src="../src/dict-update.js"></script>
+  <script src="../src/dict-panel.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

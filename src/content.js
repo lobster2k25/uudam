@@ -55,8 +55,10 @@
 
   const dictReady = (async () => {
     const load = async (file) => (await fetch(api.runtime.getURL(file))).json();
-    const [dict, fallback] = await Promise.all([load('data/dict.json'), load('data/fallback.json').catch(() => [])]);
-    index = L.buildIndex(dict, fallback);
+    // A newer dictionary the background script downloaded (dict-update.js), else the built-in one.
+    const dict = ask({ type: 'dict' }).catch(() => null).then((d) => d || load('data/dict.json'));
+    const [dictData, fallback] = await Promise.all([dict, load('data/fallback.json').catch(() => [])]);
+    index = L.buildIndex(dictData, fallback);
     shownText = null;
   })().catch((err) => console.error(`[jap-sub] failed to load dictionary: ${err && err.message ? err.message : err}`));
 

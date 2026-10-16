@@ -19,6 +19,8 @@
   #status.error { color: #d0453a; }
   #status.ok { color: #2f8a3e; }
   #setup[hidden] { display: none; }
+  .dict-status { margin-top: 6px; min-height: 1.5em; }
+  .dict-note { color: GrayText; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -44,6 +46,13 @@
   <p class="hint">Changes are saved right away.</p>
 </div>
 
+<h2>Толь бичиг / Dictionary</h2>
+<p class="hint">New Mongolian words come out often. Turn on the daily check, or press the button, to download them
+  from GitHub without waiting for a new add-on version.</p>
+<div id="dict"></div>
+
+<script src="../vendor/dict-update.js"></script>
+<script src="../vendor/dict-panel.js"></script>
 <script src="../src/anki.js"></script>
 <script src="options.js"></script>
 </body>

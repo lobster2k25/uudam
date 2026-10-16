@@ -34,7 +34,9 @@ pick this folder. Chrome keeps it after a restart. Chrome warns about `backgroun
 | `src/lookup.js` | Pure logic: joins kuromoji tokens into learner-sized words (食べ+て+い+た → 食べる), dictionary lookup, furigana |
 | `build-fallback.js` | English fallback from JMdict (© EDRDG, CC BY-SA 4.0) for words without a Mongolian entry: a 37k-word subset per tab, the full 219k set in the background on demand. A separate layer: never copied into `mongol-dict/ja-mn` |
 | `build-kanji.js` | Kanji layer `data/kanji.json` (2.4 MB, background only): jōyō on/kun readings, formation type, radical and phonetic part and the kanji sharing it (Kanjium, CC BY-SA 4.0), parts and stroke paths (KanjiVG © Ulrich Apel, CC BY-SA 3.0). The kanji popup draws the strokes in order. Part names come from our kanji and `mongol-dict/ja-mn/radicals.json`. A separate layer: never copied into `mongol-dict/ja-mn` |
-| `popup/` | Toolbar popup: on/off, furigana on/off, list of missing words (copy as TSV for the next dictionary batch) |
+| `src/dict-update.js` | Dictionary updates without a new add-on version, like Yomitan: reads the latest mongol-dict release's small index file, and when its version is newer than the built-in one (`data/dict-version.json`) downloads `mongol-dict-ja-mn.json`, checks it and keeps it in IndexedDB; content.js then uses it instead of `data/dict.json` (which stays as the backup). Off until the user turns it on (daily) or presses the button; GitHub access is an optional permission asked for at that moment. Data only, never code. Also used by build.js (`fromRelease`), so both dictionaries have the same shape |
+| `src/dict-panel.js` | The «Толь бичиг» box (version, daily check, update button) in the popup; hover's options page uses it too |
+| `popup/` | Toolbar popup: on/off, furigana on/off, list of missing words (copy as TSV for the next dictionary batch), dictionary version and updates |
 
 If Netflix gives no WebVTT track, content.js falls back to reading the text Netflix itself draws
 (works for text subtitles, not image subtitles).
@@ -48,11 +50,13 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
 - `node test/chrome-test.js` — the same checks (`test/checks.js`) in headless Chrome. `CHROME=` picks the browser;
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
+- `node test/dict-update-test.js` — version order, the broken-download guard, and that the latest GitHub release converts to the same dictionary build.js makes (needs the network).
+- `node test/update-test.js` — installs into headless Firefox with an empty built-in dictionary marked 0.0.1, lets the background script download the latest release, then runs the same checks (they pass only if the download is used).
 - `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
 ## Privacy
 
-Uudam collects nothing and sends nothing. Settings and the missing-word list stay in your browser. See [PRIVACY.md](PRIVACY.md).
+Uudam collects nothing and sends nothing about you. Settings and the missing-word list stay in your browser. Dictionary updates are off until you turn them on; then it downloads only the public mongol-dict files from GitHub. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 

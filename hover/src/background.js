@@ -12,13 +12,42 @@ const tokenizer = new Promise((resolve, reject) => {
     .build((err, t) => (err ? reject(err) : resolve(t)));
 });
 
-// Our Mongolian words + all of JMdict (the "fallback" layer in uudam, the main one here).
-const index = Promise.all([
-  load('data/dict.json'),
-  load('data/fallback-full/parts.json')
-    .then((parts) => Promise.all([...Array(parts).keys()].map((i) => load(`data/fallback-full/${i}.json`))))
-    .then((lists) => lists.flat()),
-]).then(([dict, jmdict]) => L.buildIndex(dict, jmdict));
+// Our Mongolian words + all of JMdict (the "fallback" layer in uudam, the main one here). The Mongolian part is
+// a newer downloaded dictionary when there is one (vendor/dict-update.js), else the built-in data/dict.json.
+const U = globalThis.UudamDictUpdate;
+const bundledVersion = () => load('data/dict-version.json').then((v) => v.version, () => '0');
+const jmdict = load('data/fallback-full/parts.json')
+  .then((parts) => Promise.all([...Array(parts).keys()].map((i) => load(`data/fallback-full/${i}.json`))))
+  .then((lists) => lists.flat());
+const ourDict = () => bundledVersion().then((v) => U.savedIfNewer(v)).catch(() => null)
+  .then((d) => d || load('data/dict.json'));
+let index = Promise.all([ourDict(), jmdict]).then(([dict, jm]) => L.buildIndex(dict, jm));
+
+async function dictInfo() {
+  const bundled = await bundledVersion();
+  const got = await U.savedIfNewer(bundled);
+  const s = await api.storage.local.get({ dictAuto: false, dictCheckedAt: 0 });
+  return { version: got ? got.version : bundled, bundled, updated: !!got, auto: s.dictAuto, checkedAt: s.dictCheckedAt };
+}
+
+// After a download, the next lookup uses the new words (pages keep words they already looked up).
+async function dictUpdate(daily) {
+  const v = await bundledVersion();
+  const res = await (daily ? U.daily(api, v) : U.update(api, v));
+  if (res && res.status === 'updated') {
+    const next = Promise.all([ourDict(), jmdict]).then(([dict, jm]) => L.buildIndex(dict, jm));
+    await next;
+    index = next;
+  }
+  return res;
+}
+dictUpdate(true).catch((err) => console.warn(`[uudam-hover] dictionary update failed: ${err && err.message ? err.message : err}`));
+// GitHub access just granted on the options page: check right away.
+api.permissions.onAdded.addListener((p) => {
+  if ((p.origins || []).some((o) => U.ORIGINS.includes(o))) {
+    dictUpdate(false).catch((err) => console.warn(`[uudam-hover] dictionary update failed: ${err.message}`));
+  }
+});
 
 // Kanji for the popup's kanji rows: KANJIDIC2 (English, readings, strokes; see build.js) by character.
 // Also in the shape lookup.js kanjiReadings() wants, to tell which reading the kanji has in a word.
@@ -121,6 +150,8 @@ const HANDLERS = {
   'anki-check': (msg) => ankiCheck(msg.word).catch((e) => ({ state: 'error', error: e.message })),
   'anki-add': (msg) => ankiAdd(msg.word).catch((e) => ({ state: 'error', error: e.message })),
   'anki-options': () => api.runtime.openOptionsPage(),
+  'dict-info': () => dictInfo(),
+  'dict-update': () => dictUpdate(false).catch((e) => ({ status: 'error', error: e.message })),
 };
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {

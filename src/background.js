@@ -22,7 +22,30 @@ const fullJmdict = () => (jmdict ||= load('data/fallback-full/parts.json')
 let kanjiData = null;
 const kanjiInfo = () => (kanjiData ||= load('data/kanji.json').then((list) => new Map(list.map((e) => [e.k, e]))).catch(() => new Map()));
 
+// Dictionary updates (dict-update.js): the built-in dictionary's version, and a newer downloaded one if there is one.
+const U = globalThis.UudamDictUpdate;
+const bundledVersion = () => load('data/dict-version.json').then((v) => v.version, () => '0');
+const dictInfo = async () => {
+  const bundled = await bundledVersion();
+  const got = await U.savedIfNewer(bundled);
+  const s = await api.storage.local.get({ dictAuto: false, dictCheckedAt: 0 });
+  return { version: got ? got.version : bundled, bundled, updated: !!got, auto: s.dictAuto, checkedAt: s.dictCheckedAt };
+};
+const dailyUpdate = () => bundledVersion().then((v) => U.daily(api, v))
+  .catch((err) => console.warn(`[jap-sub] dictionary update failed: ${err && err.message ? err.message : err}`));
+dailyUpdate();
+// GitHub access just granted from the popup (which Firefox may have closed meanwhile): check right away.
+api.permissions.onAdded.addListener((p) => {
+  if ((p.origins || []).some((o) => U.ORIGINS.includes(o))) {
+    bundledVersion().then((v) => U.update(api, v)).catch((err) => console.warn(`[jap-sub] dictionary update failed: ${err.message}`));
+  }
+});
+
 const handlers = {
+  // The downloaded dictionary for content.js, or null to use the built-in data/dict.json.
+  dict: () => { dailyUpdate(); return bundledVersion().then((v) => U.savedIfNewer(v)); },
+  dictInfo,
+  dictUpdate: () => bundledVersion().then((v) => U.update(api, v)),
   tokenize: (msg) => tokenizer.then((t) => msg.lines.map((line) => t.tokenize(line)
     .map((tok) => Object.fromEntries(FIELDS.map((f) => [f, tok[f]]))))),
   jmdict: (msg) => fullJmdict().then((map) => L.rankFallback(msg.forms.map((f) => map.get(f)).find(Boolean) || [], msg.reading)),

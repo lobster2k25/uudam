@@ -40,7 +40,8 @@ Firefox 142+); `test/chromium-test.js` shows it also runs in Chromium with a ser
 | `src/content.js` | Runs in every page. Finds the character under the mouse, sends up to 40 characters around it (same paragraph, same sentence) to the background, highlights the word it gets back (CSS Custom Highlight API, so the page is not changed) and draws the popup in a shadow root |
 | `src/background.js` | Loads kuromoji, our Mongolian words, all of JMdict and `data/kanji.json` once; splits the text with uudam's `segment()` and answers with the word at the mouse and its kanji; saves notes to Anki |
 | `src/anki.js` | Talks to AnkiConnect (127.0.0.1:8765) and turns a word into a note from the stored settings. Used by the background and the options page |
-| `options/` | Options page: connect to Anki, deck, note type, fields, tags (stored in `storage.local`) |
+| `options/` | Options page: connect to Anki, deck, note type, fields, tags (stored in `storage.local`); «Толь бичиг» box for dictionary updates |
+| `vendor/dict-update.js`, `vendor/dict-panel.js` | Copies of uudam's dictionary updater (see `../README.md`): with the daily check on (or the button pressed) a newer mongol-dict release is downloaded from GitHub and used instead of `data/dict.json`. GitHub access is an optional permission asked for then; data only, nothing about the user is sent |
 
 ## Tests
 

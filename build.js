@@ -2,6 +2,7 @@
 // Run after `npm install` in mongol-dict, and again whenever the dictionary changes: node build.js
 const fs = require('fs');
 const path = require('path');
+const { fromRelease } = require('./src/dict-update');
 
 const ext = __dirname;
 const dictRepo = path.join(ext, '..', 'mongol-dict');
@@ -38,18 +39,20 @@ for (const f of fs.readdirSync(path.join(kuromoji, 'dict'))) {
 
 const read = (dir) => fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()
   .flatMap((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
-const kanji = read(path.join(dictRepo, 'ja-mn', 'kanji'))
-  .map(({ kanji, meanings_mn, origin_mn, note_kind, note_mn, examples }) => ({ kanji, meanings_mn, origin_mn: origin_mn || '', note_kind, note_mn, examples }));
-// Names (countries, places, surnames…) become word-shaped entries: the Mongolian name, then its description.
+// Same shape as a dictionary update downloaded at run time (src/dict-update.js), from the same converter.
+// The version tells the add-on whether a downloaded dictionary is newer than this built-in one.
 const namesDir = path.join(dictRepo, 'ja-mn', 'names');
-const names = (fs.existsSync(namesDir) ? read(namesDir) : [])
-  .map(({ id, word, reading, alt, kind, mn, desc_mn }) => ({
-    id, word, reading, alt, pos: `name-${kind}`, meanings_mn: desc_mn ? [mn, desc_mn] : [mn], note_kind: '', note_mn: '',
-  }));
-const words = [...read(path.join(dictRepo, 'ja-mn', 'words')).map(({ status, ...e }) => e), ...names];
+const { version, kanji, words } = fromRelease({
+  version: JSON.parse(fs.readFileSync(path.join(dictRepo, 'package.json'), 'utf8')).version,
+  kanji: read(path.join(dictRepo, 'ja-mn', 'kanji')),
+  words: read(path.join(dictRepo, 'ja-mn', 'words')),
+  names: fs.existsSync(namesDir) ? read(namesDir) : [],
+});
+const names = words.filter((w) => w.pos.startsWith('name-'));
 fs.mkdirSync(path.join(ext, 'data'), { recursive: true });
-fs.writeFileSync(path.join(ext, 'data', 'dict.json'), JSON.stringify({ kanji, words }));
-console.log(`vendor/: kuromoji + dictionary; data/dict.json: ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names`);
+fs.writeFileSync(path.join(ext, 'data', 'dict.json'), JSON.stringify({ version, kanji, words }));
+fs.writeFileSync(path.join(ext, 'data', 'dict-version.json'), JSON.stringify({ version }));
+console.log(`vendor/: kuromoji + dictionary; data/dict.json (mongol-dict ${version}): ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names`);
 
 // English fallback from JMdict, a separate layer (see build-fallback.js).
 require('./build-fallback')(ext);

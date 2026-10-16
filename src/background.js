@@ -42,7 +42,7 @@ api.permissions.onAdded.addListener((p) => {
 });
 
 const handlers = {
-  // The downloaded dictionary for content.js, or null to use the built-in data/dict.json.
+  // The downloaded dictionary for content.js, or null to use the built-in data/dict/.
   dict: () => { dailyUpdate(); return bundledVersion().then((v) => U.savedIfNewer(v)); },
   dictInfo,
   dictUpdate: () => bundledVersion().then((v) => U.update(api, v)),

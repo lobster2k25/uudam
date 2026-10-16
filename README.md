@@ -52,7 +52,7 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
 - `node test/dict-update-test.js` — version order, the broken-download guard, and that the latest GitHub release converts to the same dictionary build.js makes (needs the network).
 - `node test/update-test.js` — installs into headless Firefox with an empty built-in dictionary marked 0.0.1, lets the background script download the latest release, then runs the same checks (they pass only if the download is used).
-- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules` — Mozilla's checks (currently 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
+- `npx web-ext lint --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules hover` — Mozilla's checks (0 errors, 1 warning: Firefox ignores `background.service_worker`, which is for Chrome).
 
 ## Privacy
 
@@ -75,7 +75,7 @@ git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict check
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js
-npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules
+npx web-ext build --source-dir . --ignore-files test build.js build-fallback.js build-kanji.js build-chrome.js rebuild-all.js package.json package-lock.json node_modules hover
 ```
 
 For the Chrome Web Store, after `node build.js` run `node build-chrome.js`. It writes `web-ext-artifacts/uudam-chrome-<version>.zip`

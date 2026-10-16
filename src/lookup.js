@@ -167,5 +167,15 @@
     return out;
   }
 
-  return { buildIndex, fallbackIndex, rankFallback, segment, furigana, toHiragana, kanjiReadings };
+  // The built-in dictionary, which build.js splits into files under 5 MB (addons.mozilla.org's limit):
+  // data/dict/parts.json { version, parts }, data/dict/kanji.json, data/dict/words-0.json … words-<parts-1>.json.
+  // load(file) → the parsed JSON of a file in the add-on (or on disk, in Node).
+  async function loadDict(load) {
+    const { version, parts } = await load('data/dict/parts.json');
+    const [kanji, ...lists] = await Promise.all([load('data/dict/kanji.json'),
+      ...[...Array(parts).keys()].map((i) => load(`data/dict/words-${i}.json`))]);
+    return { version, kanji, words: lists.flat() };
+  }
+
+  return { buildIndex, fallbackIndex, rankFallback, segment, furigana, toHiragana, kanjiReadings, loadDict };
 });

@@ -1,4 +1,4 @@
-// Fills vendor/ (kuromoji + its dictionary) and data/dict.json (our kanji + words) from ../mongol-dict.
+// Fills vendor/ (kuromoji + its dictionary) and data/dict/ (our kanji + words, in parts) from ../mongol-dict.
 // Run after `npm install` in mongol-dict, and again whenever the dictionary changes: node build.js
 const fs = require('fs');
 const path = require('path');
@@ -50,9 +50,20 @@ const { version, kanji, words } = fromRelease({
 });
 const names = words.filter((w) => w.pos.startsWith('name-'));
 fs.mkdirSync(path.join(ext, 'data'), { recursive: true });
-fs.writeFileSync(path.join(ext, 'data', 'dict.json'), JSON.stringify({ version, kanji, words }));
+// In parts under 5 MB each (addons.mozilla.org rejects bigger files); lookup.js loadDict() puts them together.
+const WORDS_PER_PART = 4000;
+const dictDir = path.join(ext, 'data', 'dict');
+fs.rmSync(dictDir, { recursive: true, force: true });
+fs.rmSync(path.join(ext, 'data', 'dict.json'), { force: true });
+fs.mkdirSync(dictDir);
+const parts = Math.ceil(words.length / WORDS_PER_PART);
+fs.writeFileSync(path.join(dictDir, 'parts.json'), JSON.stringify({ version, parts }));
+fs.writeFileSync(path.join(dictDir, 'kanji.json'), JSON.stringify(kanji));
+for (let i = 0; i < parts; i++) {
+  fs.writeFileSync(path.join(dictDir, `words-${i}.json`), JSON.stringify(words.slice(i * WORDS_PER_PART, (i + 1) * WORDS_PER_PART)));
+}
 fs.writeFileSync(path.join(ext, 'data', 'dict-version.json'), JSON.stringify({ version }));
-console.log(`vendor/: kuromoji + dictionary; data/dict.json (mongol-dict ${version}): ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names`);
+console.log(`vendor/: kuromoji + dictionary; data/dict/ (mongol-dict ${version}, ${parts} word parts): ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names`);
 
 // English fallback from JMdict, a separate layer (see build-fallback.js).
 require('./build-fallback')(ext);

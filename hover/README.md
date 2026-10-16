@@ -48,7 +48,7 @@ Firefox 142+); `test/chromium-test.js` shows it also runs in Chromium with a ser
 - `npm install` in uudam once, then `node test/chromium-test.js` — loads the extension into headless Chromium
   and points at words on `test/page.html` with Shift held, then saves a word to a fake AnkiConnect on port 8765
   (skipped when Anki is open). Screenshots in `test/out/`. On Windows set `CHROMIUM` to a Chromium (not Chrome) exe.
-- `npx web-ext lint --source-dir . --ignore-files test docs build.js README.md` — Mozilla's checks (0 warnings).
+- `npx web-ext lint --source-dir . --ignore-files test docs art build.js README.md` — Mozilla's checks (0 warnings).
 
 ## License
 
@@ -63,7 +63,7 @@ including `node build.js`), then:
 
 ```sh
 cd hover && node build.js
-npx web-ext build --source-dir . --ignore-files test docs build.js README.md
+npx web-ext build --source-dir . --ignore-files test docs art build.js README.md
 ```
 
 The zip lands in `hover/web-ext-artifacts/`. It holds `src/` (our code, not minified), `vendor/kuromoji.js` and

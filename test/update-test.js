@@ -19,8 +19,9 @@ function oldCopy() {
   // Turn the daily check on, as the popup's checkbox does; background.js already ran its first check, so ask again.
   fs.writeFileSync(path.join(dir, 'test-hook.js'),
     'browser.storage.local.set({ dictAuto: true }).then(() => UudamDictUpdate.update(browser, "0.0.1"));\n');
-  const dict = JSON.parse(fs.readFileSync(path.join(dir, 'data', 'dict.json'), 'utf8'));
-  fs.writeFileSync(path.join(dir, 'data', 'dict.json'), JSON.stringify({ version: '0.0.1', kanji: dict.kanji, words: [] }));
+  // Built-in dictionary: the real kanji, no words.
+  fs.writeFileSync(path.join(dir, 'data', 'dict', 'parts.json'), JSON.stringify({ version: '0.0.1', parts: 1 }));
+  fs.writeFileSync(path.join(dir, 'data', 'dict', 'words-0.json'), '[]');
   fs.writeFileSync(path.join(dir, 'data', 'dict-version.json'), JSON.stringify({ version: '0.0.1' }));
   return dir;
 }

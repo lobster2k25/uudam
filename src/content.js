@@ -56,7 +56,7 @@
   const dictReady = (async () => {
     const load = async (file) => (await fetch(api.runtime.getURL(file))).json();
     // A newer dictionary the background script downloaded (dict-update.js), else the built-in one.
-    const dict = ask({ type: 'dict' }).catch(() => null).then((d) => d || load('data/dict.json'));
+    const dict = ask({ type: 'dict' }).catch(() => null).then((d) => d || L.loadDict(load));
     const [dictData, fallback] = await Promise.all([dict, load('data/fallback.json').catch(() => [])]);
     index = L.buildIndex(dictData, fallback);
     shownText = null;

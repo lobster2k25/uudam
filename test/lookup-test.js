@@ -4,7 +4,7 @@ const path = require('path');
 const assert = require('assert');
 const kuromoji = require(path.join(__dirname, '..', '..', 'mongol-dict', 'node_modules', 'kuromoji'));
 const L = require('../src/lookup');
-const dict = require('../data/dict.json');
+const dict = require('./read-dict')();
 
 const index = L.buildIndex(dict);
 const rubyText = (ruby) => ruby.map((r) => (r.rt ? `${r.text}(${r.rt})` : r.text)).join('');

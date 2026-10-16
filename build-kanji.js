@@ -137,6 +137,5 @@ function buildKanji(ext, kanjiList) {
 
 module.exports = buildKanji;
 if (require.main === module) {
-  const dict = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'dict.json'), 'utf8'));
-  buildKanji(__dirname, dict.kanji);
+  buildKanji(__dirname, JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'dict', 'kanji.json'), 'utf8')));
 }

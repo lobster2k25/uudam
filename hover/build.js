@@ -2,14 +2,14 @@
 // the lookup logic (src/lookup.js → vendor/lookup.js), our Mongolian words and the full JMdict (data/).
 // Also writes data/kanji.json for the kanji rows in the popup: English meanings, readings, strokes, grade and
 // JLPT level from KANJIDIC2 © EDRDG (CC BY-SA 4.0), with the jōyō readings from uudam's data/kanji.json
-// (Kanjium, CC BY-SA 4.0) where it has them. The Mongolian kanji meanings stay in dict.json (ours).
+// (Kanjium, CC BY-SA 4.0) where it has them. The Mongolian kanji meanings stay in dict/ (ours).
 // Run `node build.js` in the uudam folder first, then here: node build.js
 const fs = require('fs');
 const path = require('path');
 
 const hover = __dirname;
 const uudam = path.join(hover, '..');
-const need = ['vendor/kuromoji.js', 'vendor/dict', 'data/dict.json', 'data/fallback-full/parts.json'];
+const need = ['vendor/kuromoji.js', 'vendor/dict', 'data/dict/parts.json', 'data/fallback-full/parts.json'];
 const missing = need.filter((f) => !fs.existsSync(path.join(uudam, f)));
 if (missing.length) throw new Error(`missing in uudam: ${missing.join(', ')} (run node build.js there first)`);
 
@@ -19,7 +19,7 @@ fs.copyFileSync(path.join(uudam, 'src', 'lookup.js'), path.join(hover, 'vendor',
 // Dictionary updates from GitHub releases, shared with uudam (background script + the options page box).
 for (const f of ['dict-update.js', 'dict-panel.js']) fs.copyFileSync(path.join(uudam, 'src', f), path.join(hover, 'vendor', f));
 fs.mkdirSync(path.join(hover, 'data'));
-fs.copyFileSync(path.join(uudam, 'data', 'dict.json'), path.join(hover, 'data', 'dict.json'));
+fs.cpSync(path.join(uudam, 'data', 'dict'), path.join(hover, 'data', 'dict'), { recursive: true });
 fs.copyFileSync(path.join(uudam, 'data', 'dict-version.json'), path.join(hover, 'data', 'dict-version.json'));
 fs.cpSync(path.join(uudam, 'data', 'fallback-full'), path.join(hover, 'data', 'fallback-full'), { recursive: true });
 // Hover's own icon (art/icon.svg → PNGs with art/make-icons.js); uudam's icons/ holds uudam's.
@@ -28,7 +28,7 @@ for (const f of fs.readdirSync(path.join(hover, 'art')).filter((n) => /^icon-\d+
   fs.copyFileSync(path.join(hover, 'art', f), path.join(hover, 'icons', f));
 }
 const kanji = buildKanji();
-console.log(`hover/: vendor/ (kuromoji, lookup.js), data/ (dict.json, fallback-full/${kanji ? `, kanji.json with ${kanji} kanji` : ''}), icons/`);
+console.log(`hover/: vendor/ (kuromoji, lookup.js), data/ (dict/, fallback-full/${kanji ? `, kanji.json with ${kanji} kanji` : ''}), icons/`);
 
 // data/kanji.json: [{ k, en: [meaning], on: [reading], kun: [reading], s: strokes, g: grade, j: JLPT, f: frequency }].
 // kun readings keep KANJIDIC2's form: い.きる = い written with the kanji, きる as okurigana.

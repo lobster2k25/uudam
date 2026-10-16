@@ -15,10 +15,11 @@ run('git', ['pull', '--ff-only', 'origin', 'main'], path.join(here, '..', 'mongo
 run(process.execPath, ['build.js'], here);
 run(process.execPath, ['build.js'], path.join(here, 'hover'));
 
-const count = (file) => {
-  const { kanji, words } = JSON.parse(fs.readFileSync(file, 'utf8'));
+const readDict = require('./test/read-dict');
+const count = (dir) => {
+  const { kanji, words } = readDict(dir);
   return `${words.filter((w) => !String(w.pos || '').startsWith('name')).length} words, ${kanji.length} kanji`;
 };
-console.log(`\nuudam data/dict.json: ${count(path.join(here, 'data', 'dict.json'))}`);
-console.log(`hover data/dict.json: ${count(path.join(here, 'hover', 'data', 'dict.json'))}`);
+console.log(`\nuudam data/dict/: ${count(here)}`);
+console.log(`hover data/dict/: ${count(path.join(here, 'hover'))}`);
 console.log('Done. Reload the add-ons: Firefox about:debugging → Reload, Chrome chrome://extensions → reload.');

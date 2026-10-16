@@ -73,7 +73,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "data/dict.json",
+        "data/dict/*.json",
         "data/fallback.json"
       ],
       "matches": [

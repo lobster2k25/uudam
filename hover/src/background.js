@@ -13,14 +13,14 @@ const tokenizer = new Promise((resolve, reject) => {
 });
 
 // Our Mongolian words + all of JMdict (the "fallback" layer in uudam, the main one here). The Mongolian part is
-// a newer downloaded dictionary when there is one (vendor/dict-update.js), else the built-in data/dict.json.
+// a newer downloaded dictionary when there is one (vendor/dict-update.js), else the built-in data/dict/ (lookup.js loadDict).
 const U = globalThis.UudamDictUpdate;
 const bundledVersion = () => load('data/dict-version.json').then((v) => v.version, () => '0');
 const jmdict = load('data/fallback-full/parts.json')
   .then((parts) => Promise.all([...Array(parts).keys()].map((i) => load(`data/fallback-full/${i}.json`))))
   .then((lists) => lists.flat());
 const ourDict = () => bundledVersion().then((v) => U.savedIfNewer(v)).catch(() => null)
-  .then((d) => d || load('data/dict.json'));
+  .then((d) => d || L.loadDict(load));
 let index = Promise.all([ourDict(), jmdict]).then(([dict, jm]) => L.buildIndex(dict, jm));
 
 async function dictInfo() {

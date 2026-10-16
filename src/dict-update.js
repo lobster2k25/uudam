@@ -23,7 +23,7 @@
     return false;
   }
 
-  // A release file ({ version, kanji, words, names }, tools/build-release.js) → the add-ons' dict.json shape.
+  // A release file ({ version, kanji, words, names }, tools/build-release.js) → the add-ons' dictionary shape ({ version, kanji, words }).
   function fromRelease(rel) {
     const kanji = rel.kanji.map(({ kanji, meanings_mn, origin_mn, note_kind, note_mn, examples }) => ({
       kanji, meanings_mn, origin_mn: origin_mn || '', note_kind, note_mn, examples,

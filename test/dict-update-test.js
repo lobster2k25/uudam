@@ -3,7 +3,7 @@
 // Run after build.js: node test/dict-update-test.js
 const assert = require('assert');
 const U = require('../src/dict-update');
-const bundled = require('../data/dict.json');
+const bundled = require('./read-dict')();
 
 assert.ok(U.newer('0.5.10', '0.5.9'));
 assert.ok(U.newer('1.0.0', '0.9.9'));

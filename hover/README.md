@@ -2,6 +2,8 @@
 
 ![The popup on a news page: Mongolian meaning first, then English, then one row per kanji](docs/popup.png)
 
+**Install for Firefox:** https://addons.mozilla.org/firefox/addon/uudam-hover-japanese-lookup/
+
 Hold **Shift** and point at Japanese text on any page: the word under the mouse gets a yellow highlight and a
 popup shows its reading, the Mongolian meaning when our dictionary has it, then the English meaning (JMdict).
 Verb forms are shown as the dictionary word (読んでいました → 読む). Let go of Shift and move away, press

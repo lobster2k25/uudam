@@ -27,7 +27,7 @@ Firefox 142+); `test/chromium-test.js` shows it also runs in Chromium with a ser
 1. Build uudam first (see `../README.md`): `node build.js` in the uudam folder, with JMdict in
    `../mongol-dict/ja-mn/sources/`.
 2. Here: `node build.js` — copies `vendor/` (kuromoji, lookup.js), `data/` (dict.json, fallback-full/) and
-   `icons/` from uudam, and writes `data/kanji.json` from `../mongol-dict/ja-mn/sources/kanjidic2.xml` (English
+   `icons/` from `art/` (hover's own icon: `art/icon.svg`, `art/icon-small.svg` for 16/32 px; `node art/make-icons.js` renders the PNGs), and writes `data/kanji.json` from `../mongol-dict/ja-mn/sources/kanjidic2.xml` (English
    meanings, readings, strokes, grade, JLPT; jōyō readings from uudam's `data/kanji.json`). Generated, not committed.
 3. Firefox → `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick `hover/manifest.json`.
 4. Open any page with Japanese, hold Shift and point at a word. The first lookup takes a few seconds while

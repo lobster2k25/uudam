@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <circle cx="48" cy="48" r="44" fill="#161412" stroke="#f7941d" stroke-width="8"/>
+  <text x="44" y="68" font-family="Yu Gothic, Meiryo, Noto Sans CJK JP, sans-serif" font-weight="700" font-size="54" fill="#ffffff" text-anchor="middle">字</text>
+  <path d="M62 58 L62 86 L69 79 L74 90 L80 87 L75 76 L85 76 Z" fill="#f7941d" stroke="#161412" stroke-width="3" stroke-linejoin="round"/>
+</svg>

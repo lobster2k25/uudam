@@ -22,7 +22,11 @@ fs.mkdirSync(path.join(hover, 'data'));
 fs.copyFileSync(path.join(uudam, 'data', 'dict.json'), path.join(hover, 'data', 'dict.json'));
 fs.copyFileSync(path.join(uudam, 'data', 'dict-version.json'), path.join(hover, 'data', 'dict-version.json'));
 fs.cpSync(path.join(uudam, 'data', 'fallback-full'), path.join(hover, 'data', 'fallback-full'), { recursive: true });
-fs.cpSync(path.join(uudam, 'icons'), path.join(hover, 'icons'), { recursive: true });
+// Hover's own icon (art/icon.svg → PNGs with art/make-icons.js); uudam's icons/ holds uudam's.
+fs.mkdirSync(path.join(hover, 'icons'));
+for (const f of fs.readdirSync(path.join(hover, 'art')).filter((n) => /^icon-\d+\.png$/.test(n))) {
+  fs.copyFileSync(path.join(hover, 'art', f), path.join(hover, 'icons', f));
+}
 const kanji = buildKanji();
 console.log(`hover/: vendor/ (kuromoji, lookup.js), data/ (dict.json, fallback-full/${kanji ? `, kanji.json with ${kanji} kanji` : ''}), icons/`);
 

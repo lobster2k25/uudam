@@ -154,7 +154,7 @@
     const word = words.find((w) => offset >= w.start && offset < w.end);
     if (!word) return;
     const ranges = rangesFor(ctx, word.start, word.end);
-    if (ranges.length) show(word, ranges);
+    if (ranges.length) show({ ...word, sentence: { text: ctx.text, start: word.start, end: word.end }, url: location.href }, ranges);
   }
 
   // At most one lookup per animation frame.
@@ -172,7 +172,7 @@
     :host { all: initial; }
     .box {
       position: fixed; z-index: 2147483647; box-sizing: border-box;
-      width: max-content; min-width: 180px; max-width: min(400px, calc(100vw - 16px)); max-height: 50vh; overflow-y: auto;
+      width: max-content; min-width: 180px; max-width: min(420px, calc(100vw - 16px)); max-height: 60vh; overflow-y: auto;
       padding: 12px 14px; border-radius: 10px; background: #1c1c1e; color: #f2f2f2;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45); border: 1px solid #3a3a3c;
       font: 15px/1.45 "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", system-ui, sans-serif; text-align: left;
@@ -180,14 +180,36 @@
     .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
     .word { font-size: 26px; font-weight: 600; }
     .reading { color: #ffe58a; font-size: 16px; }
+    .anki {
+      margin-left: auto; align-self: center; font: 12px/1 system-ui, sans-serif; color: #f2f2f2; cursor: pointer;
+      background: #2c2c2e; border: 1px solid #48484a; border-radius: 6px; padding: 5px 8px;
+    }
+    .anki:hover { background: #3a3a3c; }
+    .anki.saved { color: #7ee08a; border-color: #2f6b3a; cursor: default; }
+    .anki.error { color: #ff9f8a; border-color: #7a3a2f; }
+    .anki-msg { color: #ff9f8a; font-size: 12px; margin-bottom: 6px; }
     .from { color: #aeaeb2; font-size: 13px; margin-bottom: 6px; }
     .entry + .entry { margin-top: 8px; padding-top: 8px; border-top: 1px solid #3a3a3c; }
     .entry-head { color: #aeaeb2; font-size: 13px; }
     ol { margin: 2px 0 0; padding-left: 20px; }
     li { margin: 1px 0; }
+    .mn li { font-size: 16px; }
     .pos { color: #8e8e93; font-size: 12px; font-style: italic; margin-right: 4px; }
     .section { color: #8e8e93; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px; }
     .none { color: #aeaeb2; }
+    .kanji { display: flex; gap: 10px; margin-top: 6px; padding: 4px 6px; border-radius: 6px; }
+    .kanji.more { cursor: pointer; }
+    .kanji.more:hover { background: #2c2c2e; }
+    .kchar { font-size: 30px; line-height: 1.1; min-width: 34px; text-align: center; }
+    .kbody { min-width: 0; font-size: 13px; }
+    .kmn { font-size: 15px; color: #f2f2f2; }
+    .ken { color: #aeaeb2; }
+    .kread { color: #aeaeb2; display: inline-block; margin-right: 12px; }
+    .kread b { color: #ffe58a; font-weight: 600; }
+    .klabel { color: #8e8e93; font-size: 11px; margin-right: 3px; }
+    .kmeta { color: #636366; font-size: 11px; }
+    .korigin { color: #d1d1d6; font-size: 13px; margin-top: 3px; display: none; }
+    .kanji.open .korigin { display: block; }
     .credit { color: #636366; font-size: 11px; margin-top: 10px; }
   `;
 
@@ -196,6 +218,94 @@
     if (cls) e.className = cls;
     if (text != null) e.textContent = text;
     return e;
+  }
+
+  const hiragana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
+  // Whether reading r of a kanji (ショウ, い.きる) is the one it has in this word. used = { r, kind } from the
+  // background, which may be voiced or end in a small っ: 時 じ in 日時 → ジ, 学 がっ in 学校 → ガク.
+  const plainSound = (s) => s.normalize('NFD').replace(/[\u3099\u309A]/g, '');
+  function isUsed(k, kind, r) {
+    if (!k.used || k.used.kind !== kind) return false;
+    const plain = kind === 'on' ? hiragana(r) : r.split('.')[0].replace(/-/g, '');
+    const u = k.used.r;
+    if (plainSound(u) === plainSound(plain)) return true;
+    return kind === 'on' && u.endsWith('っ') && /[つちくき]$/.test(plain) && plainSound(u.slice(0, -1)) === plainSound(plain.slice(0, -1));
+  }
+
+  // One row per kanji: meaning (ours in Mongolian, KANJIDIC2 in English), on and kun readings with the one this
+  // word uses in yellow, strokes, grade, JLPT. Clicking a row with a Mongolian origin note opens it.
+  function kanjiRow(k) {
+    const row = el('div', 'kanji');
+    row.append(el('div', 'kchar', k.k));
+    const body = el('div', 'kbody');
+    if (k.mn.length) body.append(el('div', 'kmn', k.mn.join(', ')));
+    if (k.en.length) body.append(el('div', 'ken', k.en.slice(0, 5).join(', ')));
+    for (const [kind, label] of [['on', '音'], ['kun', '訓']]) {
+      if (!k[kind].length) continue;
+      const line = el('div', 'kread');
+      line.append(el('span', 'klabel', label));
+      k[kind].forEach((r, i) => {
+        if (i) line.append('、');
+        line.append(isUsed(k, kind, r) ? el('b', null, r) : r);
+      });
+      body.append(line);
+    }
+    const meta = [k.s && `${k.s} strokes`, k.g && (k.g <= 6 ? `grade ${k.g}` : 'jōyō'), k.j && `JLPT N${k.j}`].filter(Boolean);
+    if (meta.length) body.append(el('div', 'kmeta', meta.join(' · ')));
+    if (k.origin) {
+      body.append(el('div', 'korigin', k.origin));
+      row.classList.add('more');
+      row.title = 'Гарал үүсэл (click)';
+      row.addEventListener('click', () => row.classList.toggle('open'));
+    }
+    row.append(body);
+    return row;
+  }
+
+  function englishEntries(word) {
+    const out = [];
+    for (const e of word.english) {
+      const entry = el('div', 'entry');
+      if (word.english.length > 1) entry.append(el('div', 'entry-head', e.k[0] ? `${e.k[0]}【${e.r[0]}】` : e.r[0]));
+      const ol = el('ol');
+      for (const [pos, gloss] of e.s) {
+        const li = el('li');
+        if (posLabel(pos)) li.append(el('span', 'pos', posLabel(pos)));
+        li.append(gloss);
+        ol.append(li);
+      }
+      entry.append(ol);
+      out.push(entry);
+    }
+    return out;
+  }
+
+  // The Anki button: asks the background whether the word can be added or is in the deck already.
+  // Before Anki is set up it opens the options page.
+  function ankiButton(word) {
+    const button = el('button', 'anki', 'Anki +');
+    let state = 'off';
+    const set = (res) => {
+      state = res ? res.state : 'error';
+      button.className = `anki ${state}`;
+      button.textContent = state === 'saved' ? 'In Anki ✓' : state === 'error' ? 'Anki !' : 'Anki +';
+      button.title = state === 'off' ? 'Set up Anki (opens the options)' : state === 'saved' ? 'Already in your Anki deck'
+        : state === 'error' ? (res && res.error) || 'Anki error' : 'Save to Anki';
+      const old = box.querySelector('.anki-msg');
+      if (old) old.remove();
+      if (state === 'error' && res && res.error) box.querySelector('.head').after(el('div', 'anki-msg', res.error));
+    };
+    set({ state: 'off' });
+    api.runtime.sendMessage({ type: 'anki-check', word }).then((res) => { if (shown && shown.word === word) set(res); }, () => {});
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state === 'off') { api.runtime.sendMessage({ type: 'anki-options' }); return; }
+      if (state === 'saved') return;
+      button.textContent = '…';
+      api.runtime.sendMessage({ type: 'anki-add', word }).then(set, () => set(null));
+    });
+    return button;
   }
 
   function show(word, ranges) {
@@ -208,42 +318,38 @@
       shadow.append(style, box);
     }
     if (!host.isConnected) document.documentElement.append(host);
+    const rects = ranges.flatMap((r) => [...r.getClientRects()]);
+    shown = { ranges, rects, word };
 
     const parts = [];
     const head = el('div', 'head');
-    const w = el('span', 'word', word.form);
-    head.append(w);
+    head.append(el('span', 'word', word.form));
     if (word.reading && word.reading !== word.form) head.append(el('span', 'reading', word.reading));
+    head.append(ankiButton(word));
     parts.push(head);
     if (word.surface !== word.form) parts.push(el('div', 'from', `${word.surface} → ${word.form}`));
 
-    for (const e of word.english) {
-      const entry = el('div', 'entry');
-      if (word.english.length > 1) entry.append(el('div', 'entry-head', e.k[0] ? `${e.k[0]}【${e.r[0]}】` : e.r[0]));
-      const ol = el('ol');
-      for (const [pos, gloss] of e.s) {
-        const li = el('li');
-        if (posLabel(pos)) li.append(el('span', 'pos', posLabel(pos)));
-        li.append(gloss);
-        ol.append(li);
-      }
-      entry.append(ol);
-      parts.push(entry);
-    }
-    if (word.mongolian.length) {
+    // Our Mongolian meaning first when there is one, then English.
+    const mongolian = word.mongolian.flat();
+    if (mongolian.length) {
       parts.push(el('div', 'section', 'Монгол'));
-      const ol = el('ol');
-      for (const m of word.mongolian.flat()) ol.append(el('li', null, m));
+      const ol = el('ol', 'mn');
+      for (const m of mongolian) ol.append(el('li', null, m));
       parts.push(ol);
+      if (word.english.length) parts.push(el('div', 'section', 'English'));
     }
-    if (!word.english.length && !word.mongolian.length) parts.push(el('div', 'none', 'No dictionary entry.'));
-    if (word.english.length) parts.push(el('div', 'credit', 'JMdict © EDRDG · CC BY-SA 4.0'));
+    parts.push(...englishEntries(word));
+    if (!word.english.length && !mongolian.length) parts.push(el('div', 'none', 'No dictionary entry.'));
+    if (word.kanji && word.kanji.length) {
+      parts.push(el('div', 'section', 'Ханз · Kanji'));
+      parts.push(...word.kanji.map(kanjiRow));
+    }
+    const credits = [word.english.length && 'JMdict', word.kanji && word.kanji.some((k) => k.en.length) && 'KANJIDIC2'].filter(Boolean);
+    if (credits.length) parts.push(el('div', 'credit', `${credits.join(', ')} © EDRDG · CC BY-SA 4.0`));
     box.replaceChildren(...parts);
     box.scrollTop = 0;
 
     highlight(ranges);
-    const rects = ranges.flatMap((r) => [...r.getClientRects()]);
-    shown = { ranges, rects };
     place(rects);
   }
 

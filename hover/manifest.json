@@ -3,7 +3,7 @@
   "name": "Uudam Hover – Japanese Lookup",
   "short_name": "Uudam Hover",
   "version": "0.1.0",
-  "description": "Hold Shift and point at Japanese text on any page to see the word's reading and English meaning.",
+  "description": "Hold Shift and point at Japanese text to see the reading, Mongolian and English meaning and kanji. Save words to Anki.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -22,10 +22,17 @@
       }
     }
   },
+  "permissions": [
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "http://127.0.0.1:8765/*"
+  ],
   "background": {
     "scripts": [
       "vendor/kuromoji.js",
       "vendor/lookup.js",
+      "src/anki.js",
       "src/background.js"
     ]
   },
@@ -40,5 +47,9 @@
       "run_at": "document_idle",
       "all_frames": true
     }
-  ]
+  ],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  }
 }

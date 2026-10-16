@@ -1,5 +1,6 @@
 // Background work for content.js: splits the text under the mouse into words with kuromoji, finds the
-// word at the mouse, and looks it up in the full JMdict (English) and our Mongolian dictionary.
+// word at the mouse, and looks it up in the full JMdict (English) and our Mongolian dictionary, with its kanji.
+// Also saves words to Anki (src/anki.js) when the popup's Anki button is pressed.
 // Everything is loaded once, here, so pages only carry the small content script.
 const api = globalThis.browser || globalThis.chrome;
 const L = globalThis.JapSubLookup;
@@ -19,10 +20,35 @@ const index = Promise.all([
     .then((lists) => lists.flat()),
 ]).then(([dict, jmdict]) => L.buildIndex(dict, jmdict));
 
+// Kanji for the popup's kanji rows: KANJIDIC2 (English, readings, strokes; see build.js) by character.
+// Also in the shape lookup.js kanjiReadings() wants, to tell which reading the kanji has in a word.
+const kanjidic = load('data/kanji.json').then((list) => {
+  const byChar = new Map(list.map((k) => [k.k, k]));
+  const readings = new Map(list.map((k) => [k.k, { on: k.on.map((r) => [r]), kun: k.kun.map((r) => r.split('.')) }]));
+  return { byChar, readings };
+}, () => ({ byChar: new Map(), readings: new Map() }));
+const KANJI = /[㐀-鿿豈-﫿]/;
+
+// The kanji of a word: [{ k, mn, origin, en, on, kun, s, g, j, used: { r, kind } }], used = its reading in this word.
+function kanjiOf(form, ruby, idx, kd) {
+  const used = L.kanjiReadings(ruby, kd.readings);
+  return [...new Set([...form].filter((c) => KANJI.test(c)))].map((c) => {
+    const ours = idx.kanji.get(c);
+    const k = kd.byChar.get(c) || { en: [], on: [], kun: [] };
+    return {
+      k: c,
+      mn: ours ? ours.meanings_mn : [],
+      origin: ours && ours.origin_mn ? ours.origin_mn : '',
+      en: k.en, on: k.on, kun: k.kun, s: k.s, g: k.g, j: k.j,
+      used: used.get(c) || null,
+    };
+  });
+}
+
 // All the words in a stretch of page text (one sentence): [{ start, end, surface, form, reading, english,
 // mongolian, parts }]. The page keeps them, so moving the mouse along the sentence needs no new lookup.
 async function words(text) {
-  const [t, idx] = await Promise.all([tokenizer, index]);
+  const [t, idx, kd] = await Promise.all([tokenizer, index, kanjidic]);
   const tokens = t.tokenize(text);
   const out = [];
   let start = 0;
@@ -33,15 +59,19 @@ async function words(text) {
       let english = L.rankFallback(idx.fallback.get(unit.form) || idx.fallback.get(unit.surface) || [], unit.reading);
       // A phrase only our dictionary has (いい天気): English for its main word (天気).
       if (!english.length) english = englishInside(tokens, start, end, idx);
+      const form = unit.entries[0] ? unit.entries[0].word : unit.form;
+      const furigana = L.furigana(form, unit.reading);
       out.push({
         start,
         end,
         surface: unit.surface,
-        form: unit.entries[0] ? unit.entries[0].word : unit.form,
+        form,
         reading: unit.reading,
         english,
         mongolian: unit.entries.map((e) => e.meanings_mn),
         parts: unit.parts.map((p) => p.surface),
+        furigana,
+        kanji: kanjiOf(form, furigana, idx, kd),
       });
     }
     start = end;
@@ -67,9 +97,36 @@ function englishInside(tokens, start, end, idx) {
   return best;
 }
 
+// ---------- Anki ----------
+
+const ankiSettings = async () => (await api.storage.local.get('anki')).anki || null;
+
+// { state: 'off' } (not set up), { state: 'new' }, { state: 'saved' } (already in the deck) or { state: 'error', error }.
+async function ankiCheck(word) {
+  const settings = await ankiSettings();
+  if (!UudamAnki.ready(settings)) return { state: 'off' };
+  const [ok] = await UudamAnki.invoke('canAddNotes', { notes: [UudamAnki.note(settings, word)] });
+  return { state: ok ? 'new' : 'saved' };
+}
+
+async function ankiAdd(word) {
+  const settings = await ankiSettings();
+  if (!UudamAnki.ready(settings)) return { state: 'off' };
+  await UudamAnki.invoke('addNote', { note: UudamAnki.note(settings, word) });
+  return { state: 'saved' };
+}
+
+const HANDLERS = {
+  'hover-words': (msg) => words(msg.text),
+  'anki-check': (msg) => ankiCheck(msg.word).catch((e) => ({ state: 'error', error: e.message })),
+  'anki-add': (msg) => ankiAdd(msg.word).catch((e) => ({ state: 'error', error: e.message })),
+  'anki-options': () => api.runtime.openOptionsPage(),
+};
+
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type !== 'hover-words') return undefined;
-  words(msg.text).then(sendResponse, (err) => {
+  const handler = msg && HANDLERS[msg.type];
+  if (!handler) return undefined;
+  Promise.resolve(handler(msg)).then(sendResponse, (err) => {
     console.error(`[uudam-hover] ${err && err.message ? err.message : err}`);
     sendResponse(null);
   });

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Uudam Hover options</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 24px 0 6px; }
+  p { margin: 6px 0; }
+  .hint { color: GrayText; font-size: 13px; }
+  label { display: block; margin: 8px 0 2px; font-weight: 600; }
+  select, input[type=text] { font: inherit; padding: 4px 6px; min-width: 260px; }
+  table { border-collapse: collapse; margin-top: 6px; }
+  td { padding: 3px 10px 3px 0; }
+  button { font: inherit; padding: 5px 12px; cursor: pointer; }
+  #status { margin-top: 8px; min-height: 1.5em; }
+  #status.error { color: #d0453a; }
+  #status.ok { color: #2f8a3e; }
+  #setup[hidden] { display: none; }
+</style>
+</head>
+<body>
+<h1>Uudam Hover</h1>
+<p class="hint">Hold Shift and point at Japanese text to look a word up.</p>
+
+<h2>Anki</h2>
+<p>The popup's <b>Anki +</b> button saves the word as a card in Anki. You need the Anki desktop app open with the
+  <b>AnkiConnect</b> add-on (code 2055492159).</p>
+<p><button id="connect">Connect to Anki</button> <button id="off">Turn Anki off</button></p>
+<p class="hint">Anki may ask you once whether to allow this add-on: press Yes.</p>
+<div id="status"></div>
+
+<div id="setup" hidden>
+  <label for="deck">Deck</label>
+  <select id="deck"></select>
+  <label for="model">Note type</label>
+  <select id="model"></select>
+  <label>Fields</label>
+  <table id="fields"></table>
+  <label for="tags">Tags</label>
+  <input type="text" id="tags" placeholder="uudam">
+  <p class="hint">Changes are saved right away.</p>
+</div>
+
+<script src="../src/anki.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

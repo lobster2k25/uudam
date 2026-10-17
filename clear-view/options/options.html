@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Clear View settings</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 16px; max-width: 520px; }
+  h1 { font-size: 16px; margin: 0 0 12px; }
+  .row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(128,128,128,.25); }
+  .row:last-of-type { border-bottom: 0; }
+  .row input[type=checkbox] { margin-top: 3px; }
+  .text { flex: 1; }
+  .hint { opacity: .7; font-size: 12px; }
+  .sub { margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+  input[type=number] { width: 70px; }
+  #saved { margin-top: 10px; font-size: 12px; opacity: 0; transition: opacity .2s; }
+  #saved.on { opacity: .8; }
+  /* Toolbar pop-up: fixed narrow width */
+  body.popup { width: 320px; margin: 12px 14px; }
+  body.popup h1 { font-size: 15px; }
+</style>
+</head>
+<body>
+  <h1>Clear View for Apple TV</h1>
+
+  <label class="row">
+    <input type="checkbox" id="shade">
+    <span class="text">Remove the dark background
+      <div class="hint">No dark shade over the video when the controls show.</div>
+    </span>
+  </label>
+
+  <div class="row">
+    <input type="checkbox" id="zone">
+    <div class="text">
+      <label for="zone">Only the bottom of the video wakes the controls</label>
+      <div class="hint">Moving the mouse higher up won't show them.</div>
+      <div class="sub">Bottom <input type="number" id="zonePct" min="5" max="60" step="5"> %</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <input type="checkbox" id="fastHide">
+    <div class="text">
+      <label for="fastHide">Hide the controls faster</label>
+      <div class="hint">After the mouse stops, tell the player the mouse left.</div>
+      <div class="sub">Wait <input type="number" id="hideMs" min="200" max="10000" step="100"> ms (1000 = 1 second)</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <input type="checkbox" id="dblFull">
+    <div class="text">
+      <label for="dblFull">Double-click the video for full screen</label>
+      <div class="hint">Double-click again to leave full screen.</div>
+      <div class="sub">
+        <input type="checkbox" id="smoothClick">
+        <label for="smoothClick">Don't pause on double-click</label>
+      </div>
+      <div class="hint">A single click waits 0.3 seconds before it pauses, to see if a second click comes.</div>
+    </div>
+  </div>
+
+  <div id="saved">Saved. Open players update right away.</div>
+  <script src="options.js"></script>
+</body>
+</html>

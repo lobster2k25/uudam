@@ -1,0 +1,63 @@
+{
+  "manifest_version": 2,
+  "name": "Clear View for Apple TV",
+  "short_name": "Clear View",
+  "version": "1.0.0",
+  "description": "For the Apple TV web player: no dark shade over the video, controls wake only from the bottom and hide fast, double-click for full screen.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "clear-view-appletv@lobster2k25",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "permissions": [
+    "storage"
+  ],
+  "browser_action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_title": "Clear View settings",
+    "default_popup": "options/options.html?popup",
+    "default_area": "navbar"
+  },
+  "options_ui": {
+    "page": "options/options.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://tv.apple.com/*"
+      ],
+      "js": [
+        "src/page.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://tv.apple.com/*"
+      ],
+      "js": [
+        "src/bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}

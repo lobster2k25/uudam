@@ -19,7 +19,8 @@ Copy these into the Developer Hub when submitting. Distribution: **On this site*
 > - No dark shade over the video when the controls show.
 > - Controls wake only when you move the mouse near the bottom of the video (bottom 20%, you can change it).
 >   Moving elsewhere leaves the picture clear.
-> - Controls hide about 1 second after the mouse stops (you can change it).
+> - Controls hide about 1 second after the mouse stops (you can change it). They stay while the mouse rests
+>   on a button or menu.
 > - Double-click the video to go full screen, and again to leave. A single click still pauses and plays.
 >
 > Every feature can be turned on or off from the toolbar button. Works only on tv.apple.com.
@@ -54,7 +55,8 @@ pop-up with the settings.
 > The add-on stops some trusted mouse events at the window (capture phase) so the player doesn't see moves
 > in the upper part of the video, and dispatches synthetic mouseleave/mouseenter-type events so the player
 > hides its controls sooner and stays responsive afterwards. For the double-click feature it handles single
-> clicks on the bare video itself (video.play()/pause()) after a 300 ms wait.
+> clicks on the bare video itself (video.play()/pause()) after a 300 ms wait. Silent background videos on
+> browse pages (inside amp-background-video) are ignored, so the add-on only acts on the player.
 >
 > src/bridge.js (isolated world) reads browser.storage.local and passes the settings to page.js as a JSON
 > string in a CustomEvent. No network requests, no remote code, no data collection.

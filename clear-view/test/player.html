@@ -1,0 +1,19 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<x-player id="p" style="display:block;position:relative;width:1280px;height:720px"></x-player>
+<amp-background-video id="bg" style="display:block;position:relative;width:1280px;height:760px"></amp-background-video>
+<script>
+window.log = [];
+HTMLMediaElement.prototype.play = function () { log.push('play'); return Promise.resolve(); };
+HTMLMediaElement.prototype.pause = function () { log.push('pause'); };
+const root = document.getElementById('p').attachShadow({ mode: 'closed' });
+root.innerHTML = `<video style="position:absolute;inset:0;width:1280px;height:720px"></video>
+  <div class="shade" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+  <div class="bar" style="position:absolute;left:0;right:0;bottom:0;height:80px">
+    <button aria-label="Full Screen" style="position:absolute;right:20px;bottom:20px;width:40px;height:40px"></button></div>`;
+root.querySelector('button').addEventListener('click', () => log.push('fs-button'));
+for (const t of ['mousemove','mouseleave','click','mousedown']) root.host.addEventListener(t, e => log.push('player:' + t + (e.isTrusted ? '' : '*')));
+window.shadeBg = () => getComputedStyle(root.querySelector('.shade')).backgroundColor;
+const bg = document.getElementById('bg').attachShadow({ mode: 'closed' });
+bg.innerHTML = `<video style="width:1280px;height:760px"></video>`;
+for (const t of ['mousemove','click']) bg.host.addEventListener(t, e => log.push('bg:' + t));
+</script></body></html>

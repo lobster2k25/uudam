@@ -68,8 +68,27 @@
     const r = el.getRootNode();
     return r instanceof ShadowRoot ? r.host : null;
   }
+  // Buttons, sliders and menus of the player (anything that isn't the bare picture)
+  const CLICKABLE = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A']);
+  const CONTROL_ROLES = ['button', 'slider', 'menuitem', 'menu', 'dialog'];
+  const isControl = n => CLICKABLE.has(n.tagName) || CONTROL_ROLES.includes(n.getAttribute('role'));
+  function overControl(el) {
+    for (; el; el = composedParent(el)) {
+      if (el.tagName === 'VIDEO') return false;
+      if (isControl(el)) return true;
+    }
+    return false;
+  }
 
   // ---------- Find the main video ----------
+  // Browse pages play silent background clips (<amp-background-video>) behind the big pictures.
+  // Those are not the player, so we leave them and the page around them alone.
+  function isBackgroundVideo(v) {
+    for (let el = v; el; el = composedParent(el)) {
+      if (el.tagName === 'AMP-BACKGROUND-VIDEO') return true;
+    }
+    return false;
+  }
   let vCache = null, vTime = 0;
   function mainVideo(fresh) {
     const now = performance.now();
@@ -77,7 +96,7 @@
     vTime = now;
     let best = null, area = 0;
     walk(document, el => {
-      if (el.tagName === 'VIDEO') {
+      if (el.tagName === 'VIDEO' && !isBackgroundVideo(el)) {
         const r = el.getBoundingClientRect();
         if (r.width * r.height > area) { area = r.width * r.height; best = el; }
       }
@@ -215,7 +234,7 @@
     hideTimer = null;
     if (!settings.fastHide || !mainVideo()) return;
     const target = deepElementFromPoint(lastX, lastY);
-    if (!target) return;
+    if (!target || overControl(target)) return;  // resting on a button, slider or open menu: keep the controls
     const base = { clientX: lastX, clientY: lastY, relatedTarget: null, view: window };
     const ptr = { ...base, pointerType: 'mouse', isPrimary: true, pointerId: 1 };
     try {
@@ -257,7 +276,6 @@
 
   // ---------- 4. Double-click the video for full screen ----------
   const FS_LABEL = /full\s*-?\s*screen|全画面|フルスクリーン|plein\s*écran|vollbild|pantalla\s*completa/i;
-  const CLICKABLE = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A']);
 
   // Apple's own full screen button, if we can find it (only real buttons)
   function findFullscreenButton() {
@@ -277,9 +295,7 @@
     if (!vr || !inside(vr, e.clientX, e.clientY)) return false;
     for (const n of e.composedPath()) {
       if (!(n instanceof Element)) continue;
-      if (CLICKABLE.has(n.tagName)) return false;
-      const role = n.getAttribute('role');
-      if (['button', 'slider', 'menuitem', 'menu', 'dialog'].includes(role)) return false;
+      if (isControl(n)) return false;
       if (n.tagName === 'VIDEO') break;
     }
     return true;

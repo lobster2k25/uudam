@@ -27,10 +27,11 @@ Temporary add-ons are removed when Firefox closes. Needs Firefox 142+.
 
 | File | Role |
 |------|------|
-| `src/page.js` | Runs inside the Apple TV page (`world: "MAIN"`), before the page's own code. Opens the player's closed shadow roots so it can reach the video and add its stylesheet; finds and clears the shade layers; filters mouse events by zone; sends "mouse left" / "mouse came back" events; handles clicks and double-clicks on the bare video |
+| `src/page.js` | Runs inside the Apple TV page (`world: "MAIN"`), before the page's own code. Opens the player's closed shadow roots so it can reach the video and add its stylesheet; finds and clears the shade layers; filters mouse events by zone; sends "mouse left" / "mouse came back" events; handles clicks and double-clicks on the bare video. Skips the silent background clips on browse pages (`<amp-background-video>`) and never sends "mouse left" while the mouse rests on a button, slider or menu |
 | `src/bridge.js` | Runs in the add-on's own space. Reads the settings from `browser.storage.local` and passes them to `page.js` as a JSON string in a `clear-view:settings` event (page scripts can't read add-on storage) |
 | `options/` | Settings page, also used as the toolbar pop-up (`options.html?popup`) |
 | `art/` | Icon sources. `python3 clear-view/art/make-icons.py` (needs `pip install cairosvg`) writes `icons/*.png` and `art/listing-icon.png` |
+| `test/` | `node clear-view/test/firefox-test.js` (from the repo root, after `npm install`): loads the add-on into headless Firefox and checks every feature on a fake player page (`test/player.html`) |
 
 It uses Manifest V2 so Firefox grants access to `tv.apple.com` at install, with no extra permission step.
 The only permission is `storage`.
@@ -47,8 +48,8 @@ Collects nothing and sends nothing. It makes no network requests. Settings stay 
 From the repo root:
 
 ```sh
-npx web-ext lint  --source-dir clear-view --ignore-files art STORE.md
-npx web-ext build --source-dir clear-view --ignore-files art STORE.md --overwrite-dest
+npx web-ext lint  --source-dir clear-view --ignore-files art test STORE.md
+npx web-ext build --source-dir clear-view --ignore-files art test STORE.md --overwrite-dest
 ```
 
 `web-ext build` writes `web-ext-artifacts/clear_view_for_apple_tv-<version>.zip` (git-ignored). Upload that.

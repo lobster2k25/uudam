@@ -1,6 +1,6 @@
 # Uudam – Netflix Subtitles (browser extension)
 
-Japanese subtitles on Netflix with furigana; click a word for its Mongolian meaning and kanji breakdown.
+Japanese subtitles on Netflix and YouTube with furigana; click a word for its Mongolian meaning and kanji breakdown.
 Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 
 This repo also holds two other add-ons, each published on its own with its own README:
@@ -19,9 +19,11 @@ subtitles or dictionaries).
    Temporary add-ons are removed when Firefox closes; load again next time.
 4. Open a Netflix title, turn Netflix's subtitles to **Japanese** (or leave them off — we fetch the Japanese
    track ourselves when Netflix offers one). The first line takes a few seconds while the dictionary loads.
+   On YouTube, open a video that has Japanese captions (the uploader's, or YouTube's automatic ones): we turn
+   them on in the player ourselves and draw our line over the video instead.
 
 If nothing appears: click the Uudam toolbar icon. If it shows **Зөвшөөрөх**, Firefox is withholding the
-netflix.com permission — click it. Errors show in the Netflix tab's console with the prefix `[jap-sub]`.
+netflix.com / youtube.com permission — click it. Errors show in the tab's console with the prefix `[jap-sub]`.
 
 ### Chrome
 
@@ -33,7 +35,7 @@ pick this folder. Chrome keeps it after a restart. Chrome warns about `backgroun
 
 | File | Role |
 |------|------|
-| `src/inject.js` | Runs inside Netflix's page. Adds the WebVTT profile to the player's manifest request, reports the subtitle tracks, downloads one when asked |
+| `src/inject.js` | Runs inside the Netflix / YouTube page. Netflix: adds the WebVTT profile to the player's manifest request, reports the subtitle tracks, downloads one when asked. Both: keeps a copy of the Japanese subtitle file the player itself downloads. YouTube: reports the video's caption tracks and switches the player to the Japanese one when asked (YouTube's caption files need a token only its player adds, so the player must fetch them) |
 | `src/background.js` | Runs kuromoji (splits Japanese into words). It lives here because Firefox content scripts can't load kuromoji's dictionary. Firefox runs it as a background page (manifest `scripts`), Chrome as a service worker (`src/sw.js` loads the same files). Chrome stops the worker when idle; the next line then waits about a second while kuromoji loads again |
 | `src/content.js` | Picks the Japanese track, keeps it in sync with `video.currentTime`, draws the line with furigana; hovering the subtitles pauses the video, resting on a word opens its popup (kanji in it open the kanji's entry); on/off button 字 and Alt+J; logs words missing from our dictionary |
 | `src/lookup.js` | Pure logic: joins kuromoji tokens into learner-sized words (食べ+て+い+た → 食べる), dictionary lookup, furigana |
@@ -43,8 +45,9 @@ pick this folder. Chrome keeps it after a restart. Chrome warns about `backgroun
 | `src/dict-panel.js` | The «Толь бичиг» box (version, daily check, update button) in the popup; hover's options page uses it too |
 | `popup/` | Toolbar popup: on/off, furigana on/off, list of missing words (copy as TSV for the next dictionary batch), dictionary version and updates |
 
-If Netflix gives no WebVTT track, content.js falls back to reading the text Netflix itself draws
-(works for text subtitles, not image subtitles).
+If no subtitle file is found, content.js falls back to reading the text the player itself draws
+(works for text subtitles, not image subtitles). On YouTube our line follows the player's place and size,
+since the video often does not fill the window.
 
 ## Tests
 
@@ -52,7 +55,8 @@ If Netflix gives no WebVTT track, content.js falls back to reading the text Netf
 - `node test/serve.js`, then open `http://localhost:8765/test/page.html` — a fake player running the real
   content script with a fake subtitle track, to check the overlay and popup without Netflix.
 - `npm install` once, then `node test/firefox-test.js` — installs the extension into headless Firefox and checks the
-  fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens). Screenshots in `test/out/`.
+  fake Netflix page `test/netflix.html` (subtitle shows, Netflix's own hidden, popup opens) and the fake YouTube page
+  `test/youtube.html` (Japanese captions turned on, file caught, line drawn over the player). Screenshots in `test/out/`.
 - `node test/chrome-test.js` — the same checks (`test/checks.js`) in headless Chrome. `CHROME=` picks the browser;
   on Linux as root add `CHROME_ARGS=--no-sandbox`.
 - `node test/dict-update-test.js` — version order, the broken-download guard, and that the latest GitHub release converts to the same dictionary build.js makes (needs the network).

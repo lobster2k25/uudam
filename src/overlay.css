@@ -1,5 +1,6 @@
-/* Netflix's own subtitles stay in the page (we may read their text) but are hidden while ours show. */
-.jap-sub-active .player-timedtext { opacity: 0 !important; }
+/* The player's own subtitles stay in the page (we may read their text) but are hidden while ours show. */
+.jap-sub-active .player-timedtext,
+.jap-sub-active .ytp-caption-window-container { opacity: 0 !important; }
 
 #jap-sub-root {
   font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
@@ -77,7 +78,7 @@
 /* The whole line counts as "on the subtitles" for pausing, not just the words. */
 .jap-sub-line { pointer-events: auto; }
 
-/* On/off button: shows while the mouse moves, like Netflix's controls. */
+/* On/off button: shows while the mouse moves, like the player's own controls. */
 .jap-sub-toggle {
   position: fixed;
   right: 2.5vw;

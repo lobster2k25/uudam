@@ -1,8 +1,8 @@
-# Privacy Policy – Uudam (Netflix Subtitles)
+# Privacy Policy – Uudam (Netflix and YouTube Subtitles)
 
-Last updated: 2026-10-16
+Last updated: 2026-10-22
 
-Uudam is a browser extension that shows Japanese subtitles on Netflix with furigana and Mongolian word meanings. This policy explains what the extension does with your data.
+Uudam is a browser extension that shows Japanese subtitles on Netflix and YouTube with furigana and Mongolian word meanings. This policy explains what the extension does with your data.
 
 ## Short version
 
@@ -10,8 +10,8 @@ Uudam does not collect, send, sell, or share any of your data. Everything stays 
 
 ## What the extension reads
 
-- **Netflix subtitle files.** On `www.netflix.com` only, the extension reads the Japanese subtitle files that Netflix already sends to your browser, so it can show them on screen with furigana. This happens on your device. The subtitles are not saved or sent anywhere.
-- It does not read your Netflix account details, viewing history, passwords, payment details, or any other website.
+- **Netflix and YouTube subtitle files.** On `www.netflix.com` and `www.youtube.com` only, the extension reads the Japanese subtitle files that the site already sends to your browser, so it can show them on screen with furigana. On YouTube it may turn on the video's Japanese captions in the player so that the player downloads them. This happens on your device. The subtitles are not saved or sent anywhere.
+- It does not read your Netflix or YouTube account details, viewing history, passwords, payment details, or any other website.
 
 ## What the extension stores
 
@@ -34,7 +34,7 @@ The **Copy** button in the popup copies the missing-word list to your clipboard 
 ## Permissions
 
 - `storage`: to save your settings and the missing-word list on your device.
-- Access to `www.netflix.com`: to read subtitles and show them on the Netflix player. The extension does not run on any other site.
+- Access to `www.netflix.com` and `www.youtube.com`: to read subtitles and show them on the player. The extension does not run on any other site.
 - Optional access to GitHub (`github.com/lobster2k25/mongol-dict`, `release-assets.githubusercontent.com`, `objects.githubusercontent.com`): asked for only when you turn dictionary updates on, to download the dictionary files described above. You can remove it in the browser's add-on settings at any time.
 
 ## Children

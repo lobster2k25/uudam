@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Fake YouTube watch page for testing the installed extension (test/checks.js). Served at /watch?v=yt1 by
+     test/serve.js. The player (#movie_player) does not fill the window, like YouTube outside full screen. It
+     lists caption tracks like YouTube's player and, when switched to Japanese, downloads the caption file
+     (json3) from /api/timedtext as YouTube's player does. -->
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>fake youtube</title>
+  <style>
+    body { margin: 0; background: #0f0f0f; }
+    #movie_player { position: absolute; left: 40px; top: 60px; width: 800px; height: 450px; background: #000; }
+    video { width: 100%; height: 100%; }
+    .ytp-caption-window-container { position: absolute; bottom: 30px; width: 100%; text-align: center; color: #fff; font-size: 24px; }
+  </style>
+</head>
+<body>
+  <div id="movie_player">
+    <video muted></video>
+    <div class="ytp-caption-window-container"><span class="ytp-caption-segment">YT OWN CAPTION</span></div>
+  </div>
+  <script>
+    const canvas = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+    const ctx = canvas.getContext('2d');
+    const video = document.querySelector('video');
+    setInterval(() => {
+      ctx.fillStyle = `hsl(${(Date.now() / 50) % 360} 30% 20%)`;
+      ctx.fillRect(0, 0, 320, 180);
+    }, 50);
+    video.srcObject = canvas.captureStream(20);
+    video.play();
+
+    const id = new URLSearchParams(location.search).get('v');
+    const tracks = [{ languageCode: 'en' }, { languageCode: 'ja', kind: 'asr' }, { languageCode: 'ja' }];
+    const player = document.getElementById('movie_player');
+    window.picked = null;
+    player.getPlayerResponse = () => ({ videoDetails: { videoId: id }, captions: { playerCaptionsTracklistRenderer: { captionTracks: tracks } } });
+    player.loadModule = () => {};
+    player.getOption = (module, option) => (option === 'tracklist' ? tracks.map((t) => ({ ...t, displayName: t.languageCode })) : {});
+    player.setOption = (module, option, value) => {
+      window.picked = value;
+      const kind = value.kind ? `&kind=${value.kind}` : '';
+      fetch(`/api/timedtext?v=${id}&lang=${value.languageCode}${kind}&fmt=json3&pot=x`);
+    };
+  </script>
+</body>

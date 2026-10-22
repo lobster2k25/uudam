@@ -1,6 +1,6 @@
-// Draws our own Japanese subtitle line over the Netflix player: furigana, clickable words, and a
-// popup with the Mongolian meaning and kanji breakdown. Subtitles come from the WebVTT track that
-// inject.js finds; if there is none, we read the text Netflix itself is showing.
+// Draws our own Japanese subtitle line over the Netflix or YouTube player: furigana, clickable words, and a
+// popup with the Mongolian meaning and kanji breakdown. Subtitles come from the track that inject.js
+// finds or catches; if there is none, we read the text the player itself is showing.
 (() => {
   const api = globalThis.browser || globalThis.chrome;
   const L = globalThis.JapSubLookup;
@@ -34,7 +34,9 @@
   let loaded = { key: null, cues: [] };
   let next = null; // a file caught while this title already had one: usually the next episode's, fetched early
   let requested = null;
-  let drawing = false; // whether we draw the line now (Netflix's own subtitles are hidden only then)
+  let drawing = false; // whether we draw the line now (the player's own subtitles are hidden only then)
+  let ytTracks = null; // { videoId, tracks } from inject.js on YouTube
+  const ytAsked = new Set(); // videos whose Japanese captions we already turned on
 
   const root = document.createElement('div');
   root.id = 'jap-sub-root';
@@ -68,6 +70,7 @@
     if (typeof e.data !== 'string' || !e.data.startsWith(TAG)) return;
     const msg = JSON.parse(e.data.slice(TAG.length));
     if (msg.type === 'tracks') tracks.set(msg.movieId, msg.tracks);
+    if (msg.type === 'yt-tracks') ytTracks = msg;
     if (msg.type === 'subs' && msg.key === requested) {
       if (msg.error) console.warn(`[jap-sub] subtitle download failed: ${msg.error}`);
       else useSubs(msg.key, msg.text, 'from the track list');
@@ -77,7 +80,8 @@
   });
 
   function parseSubs(text, cc) {
-    const cues = text.trimStart().startsWith('<') ? parseTtml(text, cc) : parseVtt(text, cc);
+    const start = text.trimStart();
+    const cues = start.startsWith('{') ? parseJson3(text) : start.startsWith('<') ? parseTtml(text, cc) : parseVtt(text, cc);
     if (!cues.length) console.warn(`[jap-sub] could not read the subtitle file; it starts: ${text.slice(0, 200)}`);
     return cues;
   }
@@ -88,7 +92,7 @@
     const key = `${currentMovie() || 'any'}:captured`;
     // This title already has its file and the new one is a different script: Netflix fetched the next
     // episode early. Keep it for when that episode starts. (Same lines = the viewer switched to/from CC.)
-    if (loaded.key === key && !loaded.provisional && !otherTitle(document.querySelector('video')) && !sameScript(loaded.cues, cues)) {
+    if (loaded.key === key && !loaded.provisional && !otherTitle(findVideo()) && !sameScript(loaded.cues, cues)) {
       next = { cues, at: Date.now() };
       console.info(`[jap-sub] caught another title's subtitle file (${cues.length} cues, probably the next episode); kept for when it starts`);
       return;
@@ -119,7 +123,12 @@
     tokenize(lines).then(() => logMisses(lines));
   }
 
-  const currentMovie = () => (location.pathname.match(/\/watch\/(\d+)/) || [])[1];
+  // Netflix /watch/123; YouTube /watch?v=abc, /shorts/abc, /embed/abc.
+  const currentMovie = () => (location.pathname.match(/\/watch\/(\d+)/) || [])[1]
+    || (location.pathname === '/watch' && new URLSearchParams(location.search).get('v'))
+    || (location.pathname.match(/^\/(?:shorts|embed)\/([\w-]+)/) || [])[1];
+  // The main video: on YouTube the page can hold other (preview) videos too.
+  const findVideo = () => document.querySelector('#movie_player video') || document.querySelector('video');
 
   const warned = new Set();
   const warnOnce = (key, text) => { if (!warned.has(key)) { warned.add(key); console.warn(`[jap-sub] ${text}`); } };
@@ -163,15 +172,27 @@
     next = null;
   }
 
+  // YouTube: its caption files can only be fetched by its own player, so we switch the player to the
+  // Japanese track (the uploader's if there is one, else the automatic one) and inject.js catches the file.
+  function syncYouTube(id) {
+    if (!ytTracks || ytTracks.videoId !== id || ytAsked.has(id) || (loaded.key && loaded.key.startsWith(`${id}:`))) return;
+    const ja = ytTracks.tracks.filter((t) => /^ja/.test(t.language));
+    const t = ja.find((x) => x.kind !== 'asr') || ja[0];
+    ytAsked.add(id);
+    if (!t) { console.info(`[jap-sub] this YouTube video has no Japanese captions (${id})`); return; }
+    window.postMessage(TAG + JSON.stringify({ type: 'yt-show', language: t.language, kind: t.kind }), '*');
+  }
+
   function syncTrack(video) {
     const id = currentMovie() || 'any';
+    syncYouTube(id);
     if (loaded.key && loaded.key.endsWith(':captured')) titleChanged(id, video);
     if (id === 'any') next = null;
     const t = wantedTrack();
     if (!t) {
       if (loaded.key && !loaded.key.startsWith(`${id}:`)) loaded = { key: null, cues: [] };
       if (!loaded.cues.length && currentMovie() && Date.now() - pageStart > 15000) {
-        warnOnce(`none:${id}`, `no Japanese subtitle file seen for ${id}: turn Netflix's Japanese subtitles on and reload the page. Reading on-screen subtitles until then`);
+        warnOnce(`none:${id}`, `no Japanese subtitle file seen for ${id}: turn the player's Japanese subtitles on and reload the page. Reading on-screen subtitles until then`);
       }
       return;
     }
@@ -203,6 +224,19 @@
     s = s.replace(/^[（(][^）)]{1,15}[）)]\s*/, ''); // speaker label: （九条）烏丸先生
     if (cc) s = s.replace(/[（(〔\[][^）)〕\]]*[）)〕\]]/g, ''); // sound labels
     return s.trim();
+  }
+
+  // YouTube's caption file (json3): events with a start, a length and text pieces. Automatic captions
+  // come as overlapping two-line windows; each event is drawn as its own line, as YouTube does.
+  function parseJson3(text) {
+    let events;
+    try { events = JSON.parse(text).events || []; } catch { return []; }
+    const cues = [];
+    for (const e of events) {
+      const body = (e.segs || []).map((g) => g.utf8 || '').join('').split('\n').map((l) => cleanLine(l, false)).filter(Boolean).join('\n');
+      if (body) cues.push({ start: (e.tStartMs || 0) / 1000, end: ((e.tStartMs || 0) + (e.dDurationMs || 0)) / 1000, text: body });
+    }
+    return cues.sort((a, b) => a.start - b.start);
   }
 
   // IMSC/TTML: <p begin end> elements; times in ticks ("123t") or clock time; ruby text dropped.
@@ -247,9 +281,9 @@
       const t = video.currentTime;
       return loaded.cues.filter((c) => c.start <= t && t < c.end).map((c) => c.text).join('\n');
     }
-    // No subtitle file: fall back to whatever Netflix is drawing (works for text subtitles only), but
-    // only Japanese; anything else stays Netflix's own.
-    const box = document.querySelector('.player-timedtext');
+    // No subtitle file: fall back to whatever the player is drawing (works for text subtitles only), but
+    // only Japanese; anything else stays the player's own.
+    const box = document.querySelector('.player-timedtext, .ytp-caption-window-container');
     const text = box ? box.innerText.split('\n').map((l) => cleanLine(l, false)).filter(Boolean).join('\n') : '';
     drawing = /[぀-ヿ㐀-鿿]/.test(text);
     return drawing ? text : '';
@@ -291,7 +325,7 @@
 
   function tick() {
     requestAnimationFrame(tick);
-    const video = document.querySelector('video');
+    const video = findVideo();
     if (!video || !index) {
       root.remove();
       document.documentElement.classList.remove('jap-sub-active');
@@ -299,6 +333,7 @@
     }
     const host = document.fullscreenElement || document.querySelector('.watch-video') || document.body;
     if (root.parentElement !== host) host.appendChild(root);
+    placeOverPlayer(video);
     toggle.classList.toggle('jap-sub-off', !settings.enabled);
     toggle.classList.toggle('jap-sub-visible', hovering || Date.now() - mouseMovedAt < 3000);
     if (!settings.enabled) {
@@ -310,6 +345,27 @@
     const text = currentText(video);
     document.documentElement.classList.toggle('jap-sub-active', drawing);
     if (text !== shownText) render(text);
+  }
+
+  // On YouTube the video often does not fill the window: keep our line and button over the player.
+  // (Netflix's player always fills it, so the stylesheet's places are used there.)
+  function placeOverPlayer(video) {
+    const player = video.closest('#movie_player');
+    const r = player && player.getBoundingClientRect();
+    if (!r || !r.width || (r.width >= innerWidth - 2 && r.height >= innerHeight - 2)) {
+      if (lineBox.style.left) { lineBox.removeAttribute('style'); toggle.removeAttribute('style'); }
+      return;
+    }
+    Object.assign(lineBox.style, {
+      left: `${r.left + r.width / 2}px`,
+      bottom: `${innerHeight - r.bottom + r.height * 0.12}px`,
+      maxWidth: `${r.width * 0.9}px`,
+      fontSize: `${Math.max(16, Math.min(44, r.width * 0.035))}px`,
+    });
+    Object.assign(toggle.style, {
+      right: `${innerWidth - r.right + r.width * 0.025}px`,
+      bottom: `${innerHeight - r.bottom + r.height * 0.2}px`,
+    });
   }
 
   // Asks the background page to split lines into words; the results land in `tokens`.
@@ -385,7 +441,7 @@
     leaveTimer = null;
     if (hovering) return;
     hovering = true;
-    const video = document.querySelector('video');
+    const video = findVideo();
     if (video && !video.paused) { video.pause(); pausedByUs = true; }
   }, true);
 
@@ -400,7 +456,7 @@
     hovering = false;
     clearTimeout(hoverTimer);
     hideLookup();
-    const video = document.querySelector('video');
+    const video = findVideo();
     if (pausedByUs && video && video.paused) video.play();
     pausedByUs = false;
   }

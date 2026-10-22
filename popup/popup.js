@@ -1,10 +1,10 @@
 const api = globalThis.browser || globalThis.chrome;
-const NETFLIX = { origins: ['*://www.netflix.com/*'] };
+const SITES = { origins: ['*://www.netflix.com/*', '*://www.youtube.com/*'] };
 const $ = (id) => document.getElementById(id);
 
 // Firefox lets the user withhold host permissions; without them the content scripts never run.
-api.permissions.contains(NETFLIX).then((ok) => { $('grant').style.display = ok ? 'none' : 'block'; });
-$('grant-btn').addEventListener('click', () => api.permissions.request(NETFLIX).then((ok) => {
+api.permissions.contains(SITES).then((ok) => { $('grant').style.display = ok ? 'none' : 'block'; });
+$('grant-btn').addEventListener('click', () => api.permissions.request(SITES).then((ok) => {
   if (ok) $('grant').style.display = 'none';
 }));
 
@@ -46,5 +46,5 @@ UudamDictPanel($('dict'), {
   }),
   info: 'dictInfo',
   update: 'dictUpdate',
-  done: 'Netflix-ийн хуудсаа дахин ачаалбал шинэ үгс гарна.',
+  done: 'Netflix, YouTube-ийн хуудсаа дахин ачаалбал шинэ үгс гарна.',
 });

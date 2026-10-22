@@ -1,5 +1,6 @@
 // The checks shared by firefox-test.js and chrome-test.js: on the fake Netflix page (test/netflix.html),
-// subtitles appear, Netflix's own are hidden, a word opens its popup, kanji open, English fallback, capture mode.
+// subtitles appear, Netflix's own are hidden, a word opens its popup, kanji open, English fallback, capture mode;
+// then the fake YouTube page (test/youtube.html).
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -141,6 +142,31 @@ async function checks(browser, name) {
   const ourLine = await page2.$eval('.jap-sub-lines', (e) => e.textContent);
   console.log('old file dropped:', dropped, '| Netflix subs shown:', netflixShown, '| our line empty:', ourLine === '');
   if (!dropped || !netflixShown || ourLine !== '') failed = true;
+
+  // YouTube: the extension switches the player to the uploader's Japanese captions (not the automatic
+  // ones), catches the file the player downloads, hides YouTube's own captions and draws over the player.
+  console.log('--- YouTube');
+  logs.length = 0;
+  const page3 = await browser.newPage();
+  page3.on('console', (m) => { logs.push(m.text()); console.log(`  console.${m.type()}: ${m.text()}`); });
+  page3.on('pageerror', (e) => console.log(`  pageerror: ${e.message}`));
+  await page3.goto('http://localhost:8765/watch?v=yt1');
+  await page3.waitForSelector('.jap-sub-word', { timeout: 30000 });
+  const yt = await page3.evaluate(() => {
+    const line = document.querySelector('.jap-sub-line').getBoundingClientRect();
+    const player = document.getElementById('movie_player').getBoundingClientRect();
+    return {
+      picked: window.picked,
+      line: document.querySelector('.jap-sub-lines').innerText.replace(/\s+/g, ' '),
+      ytHidden: getComputedStyle(document.querySelector('.ytp-caption-window-container')).opacity === '0',
+      overPlayer: line.left >= player.left && line.right <= player.right && line.top >= player.top && line.bottom <= player.bottom,
+    };
+  });
+  const ytCaught = logs.some((l) => l.includes('subtitles loaded (caught from the player)'));
+  console.log('picked:', JSON.stringify(yt.picked), '| subtitle:', yt.line, '| caught:', ytCaught,
+    '| YouTube captions hidden:', yt.ytHidden, '| line over the player:', yt.overPlayer);
+  await page3.screenshot({ path: path.join(out, `${name}-youtube.png`) });
+  if (!yt.picked || yt.picked.languageCode !== 'ja' || yt.picked.kind || !ytCaught || !yt.ytHidden || !yt.overPlayer) failed = true;
   return failed;
 }
 

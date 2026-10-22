@@ -1,6 +1,6 @@
 // Records the README demo (docs/demo.mp4 + docs/demo.gif): Uudam on a Creative Commons Japanese cooking video on YouTube.
 // Visible Chrome (YouTube sends empty caption files to headless browsers), mouse driven by puppeteer with a drawn cursor,
-// frames from the CDP screencast, joined with ffmpeg (see the end of this file).
+// frames from the CDP screencast, the tab's sound with getDisplayMedia; test/make-demo.js joins them with ffmpeg.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -20,7 +20,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: false, pipe: true, enableExtensions: true,
     // 1920 CSS px wide at scale 1: the theater-mode player is about 1080p (the screencast ignores deviceScaleFactor).
     defaultViewport: { width: 1920, height: 1240 },
-    args: ['--autoplay-policy=no-user-gesture-required', '--disable-blink-features=AutomationControlled', '--lang=ja', '--window-size=1940,1360'],
+    // auto-accept-this-tab-capture: the tab's sound is recorded with getDisplayMedia without the share dialog.
+    args: ['--autoplay-policy=no-user-gesture-required', '--disable-blink-features=AutomationControlled', '--lang=ja', '--window-size=1940,1360', '--auto-accept-this-tab-capture'],
   });
   await browser.installExtension(devCopy());
   await sleep(2000);
@@ -38,7 +39,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate((s) => { const p = document.getElementById('movie_player'); p.seekTo(s, true); p.playVideo(); try { p.setPlaybackQualityRange('hd1080', 'hd1080'); } catch {} }, START);
   await page.waitForSelector('.jap-sub-word', { timeout: 90000 });
   // Theater mode for a bigger player, and a drawn mouse cursor (screenshots have none).
-  await page.keyboard.press('t').catch(() => {});
+  for (let i = 0; i < 5 && !(await page.$('ytd-watch-flexy[theater]')); i++) {
+    await page.click('.ytp-size-button').catch(() => page.keyboard.press('t').catch(() => {}));
+    await sleep(800);
+  }
   await page.evaluate(() => {
     const c = document.createElement('div');
     c.id = 'demo-cursor';
@@ -82,6 +86,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     n++;
     await cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
   });
+  // Sound: unmute, then record this tab's audio (getDisplayMedia needs a user gesture, hence Runtime.evaluate).
+  await page.evaluate(() => { const p = document.getElementById('movie_player'); p.unMute(); p.setVolume(100); });
+  const audioStart = await cdp.send('Runtime.evaluate', {
+    userGesture: true, awaitPromise: true, returnByValue: true,
+    expression: `(async () => {
+      const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true });
+      s.getVideoTracks().forEach((t) => t.stop());
+      const rec = new MediaRecorder(new MediaStream(s.getAudioTracks()), { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 192000 });
+      window.__demoAudio = { rec, chunks: [] };
+      rec.ondataavailable = (e) => window.__demoAudio.chunks.push(e.data);
+      rec.start();
+      return Date.now() / 1000;
+    })()`,
+  });
+  if (audioStart.exceptionDetails) throw new Error(`audio capture: ${JSON.stringify(audioStart.exceptionDetails)}`);
+  const marks = { audio: audioStart.result.value };
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 95, everyNthFrame: 1, maxWidth: 2560, maxHeight: 1600 });
 
   await page.addStyleTag({ content: '.ytp-chrome-bottom, .ytp-gradient-bottom, .ytp-chrome-top, .ytp-gradient-top { opacity: 0 !important; }' });
@@ -94,6 +114,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return { x: r.left + r.width / 2, y: r.top + r.height * 0.6, text: w.textContent };
   }, WORD);
   console.log('word', target.text);
+  marks.zoomIn = Date.now() / 1000; // make-demo.js zooms in on the popup and the line from here
   await glide(target.x, player.y + player.h * 0.45, 700); // above the line, then straight down onto the word
   await glide(target.x, target.y, 800);
   await page.waitForSelector('.jap-sub-popup', { timeout: 5000 });
@@ -103,18 +124,33 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(400);
   await page.mouse.down(); await sleep(90); await page.mouse.up();
   await page.waitForSelector('.jap-sub-strokes', { timeout: 10000 }).catch(() => {});
+  // The area to zoom to: the popup plus the subtitle line.
+  marks.focus = await page.evaluate(() => {
+    const rs = [document.querySelector('.jap-sub-popup'), document.querySelector('.jap-sub-word')?.parentElement].filter(Boolean).map((e) => e.getBoundingClientRect());
+    const x = Math.min(...rs.map((r) => r.left)); const y = Math.min(...rs.map((r) => r.top));
+    return { x, y, w: Math.max(...rs.map((r) => r.right)) - x, h: Math.max(...rs.map((r) => r.bottom)) - y };
+  });
   await sleep(5200); // stroke order animation
+  marks.zoomOut = Date.now() / 1000;
   await glide(player.x + player.w * 0.85, player.y + player.h * 0.2, 1100); // leave: popup closes, video plays on
   await sleep(3500);
   await cdp.send('Page.stopScreencast');
+  const audio = await page.evaluate(() => new Promise((resolve) => {
+    const a = window.__demoAudio;
+    a.rec.onstop = async () => {
+      const b = new Uint8Array(await new Blob(a.chunks).arrayBuffer());
+      let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+      resolve(btoa(s));
+    };
+    a.rec.stop();
+  }));
+  fs.writeFileSync(path.join(frames, 'audio.webm'), Buffer.from(audio, 'base64'));
   await sleep(500);
   await browser.close();
-  console.log('frames', n, 'seconds', (times[times.length - 1] - times[0]).toFixed(1));
-  fs.writeFileSync(path.join(frames, 'times.json'), JSON.stringify({ times, player }));
+  console.log('frames', n, 'seconds', (times[times.length - 1] - times[0]).toFixed(1), 'audio KB', Math.round(audio.length * 0.75 / 1024));
+  fs.writeFileSync(path.join(frames, 'times.json'), JSON.stringify({ times, player, marks }));
   // ffmpeg concat list: each frame shown for its real duration.
   const list = times.map((t, i) => `file 'f${String(i).padStart(5, '0')}.jpg'\nduration ${((times[i + 1] ?? t + 0.1) - t).toFixed(4)}\n`).join('');
   fs.writeFileSync(path.join(frames, 'list.txt'), `${list}file 'f${String(n - 1).padStart(5, '0')}.jpg'\n`);
-// Then (crop = the player printed above, 16:9):
-// ffmpeg -f concat -safe 0 -i test/out/demo-frames/list.txt -vf "crop=1904:1071:0:56,scale=1920:1080:flags=lanczos,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -movflags +faststart docs/demo.mp4
-// ffmpeg -i docs/demo.mp4 -vf "fps=15,scale=1280:-1:flags=lanczos,hqdn3d=3:3:6:6,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" docs/demo.gif
+  // Then: node test/make-demo.js (zoom, sound, docs/demo.mp4 + docs/demo.gif).
 })().catch((e) => { console.error(e); process.exit(1); });

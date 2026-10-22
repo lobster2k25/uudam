@@ -5,7 +5,7 @@ Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 
 ![Uudam on a YouTube video: the line with furigana; the mouse rests on a word, the video pauses and the Mongolian meaning opens; a click on a kanji shows its stroke order](docs/demo.gif)
 
-<sub>Video in the demo: 「（家庭の和菓子）ふっくらやわらかい「どら焼き」の作り方」 by やさいのひチャンネル Yasainohi Channel on YouTube (<a href="https://www.youtube.com/watch?v=O6Qw4WdvY0w">link</a>, Creative Commons Attribution licence). Full HD version: <a href="docs/demo.mp4">docs/demo.mp4</a>. Recorded with `node test/record-demo.js`.</sub>
+<sub>Video in the demo: 「（家庭の和菓子）ふっくらやわらかい「どら焼き」の作り方」 by やさいのひチャンネル Yasainohi Channel on YouTube (<a href="https://www.youtube.com/watch?v=O6Qw4WdvY0w">link</a>, Creative Commons Attribution licence). Full HD version with sound: <a href="docs/demo.mp4">docs/demo.mp4</a>. Recorded with `node test/record-demo.js`, then `node test/make-demo.js`.</sub>
 
 This repo also holds two other add-ons, each published on its own with its own README:
 [`hover/`](hover/README.md) (Uudam Hover, Japanese lookup on any page) and

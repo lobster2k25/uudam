@@ -51,6 +51,7 @@
   // /api/timedtext); everything else is skipped after peeking at its first bytes.
   const MAX_SUBS = 5e6;
   const caught = new Set();
+  const ytCaught = new Set(); // YouTube video ids whose caption file was caught
   const decoder = new TextDecoder();
   const isCaptionUrl = (url) => /\/api\/timedtext/.test(url || '');
   // < BOM W \n, or { for a YouTube caption file (other JSON is not worth reading).
@@ -74,8 +75,13 @@
     const kana = ((yt == null ? text : yt).match(/[぀-ヿ]/g) || []).length;
     if (kana < 20 || caught.has(url)) return;
     caught.add(url);
+    // YouTube: which video the file belongs to (v= in its address), so content.js can drop a file that
+    // arrives after the viewer moved on to another video.
+    let videoId = null;
+    if (isCaptionUrl(url)) { try { videoId = new URL(url, location.href).searchParams.get('v'); } catch {} }
+    if (videoId) ytCaught.add(videoId);
     console.info(`[jap-sub] caught the player's Japanese subtitle file (${Math.round(text.length / 1024)} KB, ${where})`);
-    send({ type: 'captured', text });
+    send({ type: 'captured', text, videoId });
   }
 
   async function sniffResponse(res) {
@@ -213,14 +219,23 @@
     }, 1000);
   }
 
-  function showYouTubeTrack(msg) {
+  // The player's first caption request often comes back empty (its request token is not ready yet) and it
+  // does not ask again for a long time. So if no file came for this video, switch the track off and on again.
+  function showYouTubeTrack(msg, attempt = 0) {
     const p = ytPlayer();
     if (!p) return;
+    const r = p.getPlayerResponse && p.getPlayerResponse();
+    const videoId = r && r.videoDetails && r.videoDetails.videoId;
+    if (msg.videoId && videoId && msg.videoId !== videoId) return; // the viewer moved on
     if (typeof p.loadModule === 'function') p.loadModule('captions');
     const list = (typeof p.getOption === 'function' && p.getOption('captions', 'tracklist')) || [];
     const pick = list.find((t) => t.languageCode === msg.language && (t.kind || '') === msg.kind) || { languageCode: msg.language };
+    if (attempt) p.setOption('captions', 'track', {});
     p.setOption('captions', 'track', pick);
-    console.info(`[jap-sub] turned on YouTube's ${msg.language}${msg.kind ? ` (${msg.kind})` : ''} captions`);
+    console.info(`[jap-sub] turned on YouTube's ${msg.language}${msg.kind ? ` (${msg.kind})` : ''} captions${attempt ? ` (try ${attempt + 1})` : ''}`);
+    if (attempt < 4 && videoId) {
+      setTimeout(() => { if (!ytCaught.has(videoId)) showYouTubeTrack({ ...msg, videoId }, attempt + 1); }, 4000 + attempt * 3000);
+    }
   }
 
   window.addEventListener('message', async (e) => {

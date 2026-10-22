@@ -76,6 +76,8 @@
       else useSubs(msg.key, msg.text, 'from the track list');
     }
     // Netflix's own player downloaded a Japanese subtitle file (inject.js watches its requests).
+    // A YouTube file for a video the viewer already left (it came late) is dropped.
+    if (msg.type === 'captured' && msg.videoId && currentMovie() && msg.videoId !== currentMovie()) return;
     if (msg.type === 'captured' && !(loaded.key && loaded.key.endsWith(':list'))) takeCaptured(msg.text);
   });
 

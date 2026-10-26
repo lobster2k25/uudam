@@ -225,7 +225,9 @@
       .replace(/([㐀-鿿々])[（(][ぁ-ゖー]+[）)]/g, '$1');
     s = s.replace(/^[（(][^）)]{1,15}[）)]\s*/, ''); // speaker label: （九条）烏丸先生
     if (cc) s = s.replace(/[（(〔\[][^）)〕\]]*[）)〕\]]/g, ''); // sound labels
-    return s.trim();
+    s = s.trim();
+    // A line of only punctuation (a lone 。 left from the line before, or from a dropped label) says nothing.
+    return /^[\s。、．，.,!?！？…‥・「」『』―ー〜~\-]*$/.test(s) ? '' : s;
   }
 
   // YouTube's caption file (json3): events with a start, a length and text pieces. Automatic captions

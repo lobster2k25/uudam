@@ -158,15 +158,16 @@ async function checks(browser, name) {
     return {
       picked: window.picked,
       line: document.querySelector('.jap-sub-lines').innerText.replace(/\s+/g, ' '),
+      lonePunct: [...document.querySelectorAll('.jap-sub-line')].some((l) => /^[\s。、.,!?！？…]*$/.test(l.textContent)),
       ytHidden: getComputedStyle(document.querySelector('.ytp-caption-window-container')).opacity === '0',
       overPlayer: line.left >= player.left && line.right <= player.right && line.top >= player.top && line.bottom <= player.bottom,
     };
   });
   const ytCaught = logs.some((l) => l.includes('subtitles loaded (caught from the player)'));
   console.log('picked:', JSON.stringify(yt.picked), '| subtitle:', yt.line, '| caught:', ytCaught,
-    '| YouTube captions hidden:', yt.ytHidden, '| line over the player:', yt.overPlayer);
+    '| YouTube captions hidden:', yt.ytHidden, '| line over the player:', yt.overPlayer, '| lone 。 line:', yt.lonePunct);
   await page3.screenshot({ path: path.join(out, `${name}-youtube.png`) });
-  if (!yt.picked || yt.picked.languageCode !== 'ja' || yt.picked.kind || !ytCaught || !yt.ytHidden || !yt.overPlayer) failed = true;
+  if (!yt.picked || yt.picked.languageCode !== 'ja' || yt.picked.kind || !ytCaught || !yt.ytHidden || !yt.overPlayer || yt.lonePunct) failed = true;
   return failed;
 }
 

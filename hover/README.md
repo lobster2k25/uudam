@@ -6,7 +6,9 @@
 
 Hold **Shift** and point at Japanese text on any page: the word under the mouse gets a yellow highlight and a
 popup shows its reading, the Mongolian meaning when our dictionary has it, then the English meaning (JMdict).
-Verb forms are shown as the dictionary word (読んでいました → 読む). Let go of Shift and move away, press
+Verb forms are shown as the dictionary word (読んでいました → 読む). When the word is part of a grammar pattern in the sentence
+(〜ている, 〜てしまう, 〜わけにはいかない), a «Дүрэм · Grammar» section explains it in Mongolian with an example. 🔊 reads
+the word or the example aloud with the browser's own Japanese voice (shown only when the computer has one). Let go of Shift and move away, press
 Escape, click, or scroll to close it.
 
 Below the meanings, one row per kanji in the word: our Mongolian meaning, the English one (KANJIDIC2), on and

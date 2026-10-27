@@ -81,7 +81,7 @@ async function words(text) {
   const tokens = t.tokenize(text);
   const out = [];
   let start = 0;
-  for (const unit of L.segment(tokens, idx)) {
+  for (const unit of L.attachGrammar(L.segment(tokens, idx), idx)) {
     const end = start + unit.surface.length;
     if (unit.lookable && text.slice(start, end) === unit.surface) {
       // English for every word, not only those without a Mongolian entry (as in uudam).
@@ -101,6 +101,10 @@ async function words(text) {
         parts: unit.parts.map((p) => p.surface),
         furigana,
         kanji: kanjiOf(form, furigana, idx, kd),
+        // Grammar patterns of the sentence that this word is part of (〜てしまう in 食べてしまった).
+        grammar: unit.grammar.map((g) => ({
+          pattern: g.pattern, level: g.level, meanings: g.meanings_mn, attach: g.attach_mn, note: g.note_mn, example: g.examples[0] || null,
+        })),
       });
     }
     start = end;

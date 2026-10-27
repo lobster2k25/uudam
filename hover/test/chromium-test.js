@@ -122,6 +122,8 @@ const anki = http.createServer((req, res) => {
     t = await popupText();
     check('読んでいました → 読む', /読む/.test(t || '') && /to read/.test(t || ''), t);
     check('highlight spans the tags', /^読んで/.test((await highlighted()) || ''), await highlighted());
+    // Grammar of the sentence the word is part of: 読んでいました → 〜ている / 〜ました.
+    check('grammar section', /ДҮРЭМ/i.test(t || '') && /〜ている|〜ました/.test(t || ''), t);
     await page.screenshot({ path: path.join(out, 'hover-read.png') });
 
     // Moving away without Shift closes it.

@@ -211,6 +211,18 @@
     .korigin { color: #d1d1d6; font-size: 13px; margin-top: 3px; display: none; }
     .kanji.open .korigin { display: block; }
     .credit { color: #636366; font-size: 11px; margin-top: 10px; }
+    .say {
+      align-self: center; padding: 2px 5px; border: 0; border-radius: 4px; background: none; color: inherit;
+      font: 13px/1 system-ui, sans-serif; cursor: pointer; opacity: 0.7;
+    }
+    .say:hover { opacity: 1; background: #2c2c2e; }
+    .gram + .gram { margin-top: 8px; }
+    .gtitle { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+    .gpat { color: #ffe58a; font-size: 16px; }
+    .glevel { padding: 0 5px; border-radius: 4px; background: #2c2c2e; color: #8e8e93; font-size: 11px; }
+    .gattach, .gnote { color: #aeaeb2; font-size: 12px; margin-top: 2px; }
+    .gex { margin-top: 4px; padding-left: 8px; border-left: 2px solid #3a3a3c; font-size: 13px; }
+    .gex-mn { color: #aeaeb2; }
   `;
 
   function el(tag, cls, text) {
@@ -281,6 +293,55 @@
     return out;
   }
 
+  // A grammar pattern the word is part of: pattern, level, Mongolian meaning, how it attaches, note, one example.
+  function grammarItem(g) {
+    const item = el('div', 'gram');
+    const title = el('div', 'gtitle');
+    title.append(el('span', 'gpat', g.pattern), el('span', 'glevel', g.level));
+    item.append(title, el('div', null, g.meanings.join('; ')));
+    if (g.attach) item.append(el('div', 'gattach', g.attach));
+    if (g.note) item.append(el('div', 'gnote', g.note));
+    if (g.example) {
+      const ex = el('div', 'gex');
+      const ja = el('div', null, g.example.ja);
+      const say = speakButton(g.example.ja, 'Өгүүлбэрийг сонсох · Listen');
+      if (say) ja.append(' ', say);
+      ex.append(ja, el('div', 'gex-mn', g.example.mn));
+      item.append(ex);
+    }
+    return item;
+  }
+
+  // ---------- listening: the browser's own Japanese voice (speechSynthesis), no server ----------
+
+  // The button only appears when the browser has a Japanese voice; without one it would read the text in English.
+  let jaVoice = null;
+  function findJaVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices().filter((v) => /^ja\b/i.test(v.lang));
+    jaVoice = voices.find((v) => v.localService) || voices[0] || null;
+  }
+  if ('speechSynthesis' in window) {
+    findJaVoice();
+    speechSynthesis.addEventListener('voiceschanged', findJaVoice);
+  }
+
+  function speakButton(text, title) {
+    if (!jaVoice) return null;
+    const b = el('button', 'say', '🔊');
+    b.title = title;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = jaVoice;
+      u.lang = jaVoice.lang;
+      u.rate = 0.9;
+      speechSynthesis.speak(u);
+    });
+    return b;
+  }
+
   // The Anki button: asks the background whether the word can be added or is in the deck already.
   // Before Anki is set up it opens the options page.
   function ankiButton(word) {
@@ -325,6 +386,8 @@
     const head = el('div', 'head');
     head.append(el('span', 'word', word.form));
     if (word.reading && word.reading !== word.form) head.append(el('span', 'reading', word.reading));
+    const say = speakButton(word.form, 'Сонсох · Listen');
+    if (say) head.append(say);
     head.append(ankiButton(word));
     parts.push(head);
     if (word.surface !== word.form) parts.push(el('div', 'from', `${word.surface} → ${word.form}`));
@@ -340,6 +403,10 @@
     }
     parts.push(...englishEntries(word));
     if (!word.english.length && !mongolian.length) parts.push(el('div', 'none', 'No dictionary entry.'));
+    if (word.grammar && word.grammar.length) {
+      parts.push(el('div', 'section', 'Дүрэм · Grammar'));
+      parts.push(...word.grammar.map(grammarItem));
+    }
     if (word.kanji && word.kanji.length) {
       parts.push(el('div', 'section', 'Ханз · Kanji'));
       parts.push(...word.kanji.map(kanjiRow));

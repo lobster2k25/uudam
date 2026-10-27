@@ -42,11 +42,13 @@ const read = (dir) => fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sor
 // Same shape as a dictionary update downloaded at run time (src/dict-update.js), from the same converter.
 // The version tells the add-on whether a downloaded dictionary is newer than this built-in one.
 const namesDir = path.join(dictRepo, 'ja-mn', 'names');
-const { version, kanji, words } = fromRelease({
+const grammarDir = path.join(dictRepo, 'ja-mn', 'grammar');
+const { version, kanji, words, grammar } = fromRelease({
   version: JSON.parse(fs.readFileSync(path.join(dictRepo, 'package.json'), 'utf8')).version,
   kanji: read(path.join(dictRepo, 'ja-mn', 'kanji')),
   words: read(path.join(dictRepo, 'ja-mn', 'words')),
   names: fs.existsSync(namesDir) ? read(namesDir) : [],
+  grammar: fs.existsSync(grammarDir) ? read(grammarDir) : [],
 });
 const names = words.filter((w) => w.pos.startsWith('name-'));
 fs.mkdirSync(path.join(ext, 'data'), { recursive: true });
@@ -59,11 +61,12 @@ fs.mkdirSync(dictDir);
 const parts = Math.ceil(words.length / WORDS_PER_PART);
 fs.writeFileSync(path.join(dictDir, 'parts.json'), JSON.stringify({ version, parts }));
 fs.writeFileSync(path.join(dictDir, 'kanji.json'), JSON.stringify(kanji));
+fs.writeFileSync(path.join(dictDir, 'grammar.json'), JSON.stringify(grammar));
 for (let i = 0; i < parts; i++) {
   fs.writeFileSync(path.join(dictDir, `words-${i}.json`), JSON.stringify(words.slice(i * WORDS_PER_PART, (i + 1) * WORDS_PER_PART)));
 }
 fs.writeFileSync(path.join(ext, 'data', 'dict-version.json'), JSON.stringify({ version }));
-console.log(`vendor/: kuromoji + dictionary; data/dict/ (mongol-dict ${version}, ${parts} word parts): ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names`);
+console.log(`vendor/: kuromoji + dictionary; data/dict/ (mongol-dict ${version}, ${parts} word parts): ${kanji.length} kanji, ${words.length - names.length} words, ${names.length} names, ${grammar.length} grammar`);
 
 // English fallback from JMdict, a separate layer (see build-fallback.js).
 require('./build-fallback')(ext);

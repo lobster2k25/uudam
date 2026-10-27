@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Uudam – Netflix & YouTube",
   "short_name": "Uudam",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Japanese subtitles on Netflix and YouTube with furigana; click a word for its Mongolian meaning and kanji breakdown.",
   "icons": {
     "16": "icons/icon-16.png",

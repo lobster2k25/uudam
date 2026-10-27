@@ -395,7 +395,7 @@
     if (waitingForTokens) { tokenize(lines); return; }
     for (const line of lines) {
       const div = el('div', 'jap-sub-line');
-      const units = L.segment(tokens.get(line), index);
+      const units = L.attachGrammar(L.segment(tokens.get(line), index), index);
       for (const unit of units) div.appendChild(drawUnit(unit));
       lineBox.appendChild(div);
       logMisses([line]);
@@ -537,8 +537,11 @@
   function wordView(unit) {
     const out = [];
     const head = el('div', 'jap-sub-head');
-    head.append(withKanji(unit.entries[0] ? unit.entries[0].word : unit.form, 'jap-sub-head-word'));
+    const headWord = unit.entries[0] ? unit.entries[0].word : unit.form;
+    head.append(withKanji(headWord, 'jap-sub-head-word'));
     if (unit.reading) head.append(el('span', 'jap-sub-head-reading', unit.reading));
+    const say = speakButton(headWord, 'Үгийг сонсох');
+    if (say) head.append(say);
     out.push(head);
 
     if (!unit.entries.length) out.push(...fallbackView(unit));
@@ -549,13 +552,7 @@
       for (const m of e.meanings_mn) ol.append(el('li', null, m));
       box.append(ol);
       if (e.note_mn) box.append(el('div', 'jap-sub-note', e.note_mn));
-      for (const x of e.examples || []) {
-        const ex = el('div', 'jap-sub-example');
-        const ja = el('div', 'jap-sub-example-ja');
-        ja.append(withKanji(x.ja));
-        ex.append(ja, el('div', 'jap-sub-example-mn', x.mn));
-        box.append(ex);
-      }
+      for (const x of e.examples || []) box.append(exampleView(x));
       out.push(box);
     }
 
@@ -563,6 +560,23 @@
     if (parts.length) {
       const box = el('div', 'jap-sub-parts');
       for (const p of parts) box.append(el('div', null, `+ ${p.surface} — ${p.entries[0].meanings_mn[0]}`));
+      out.push(box);
+    }
+
+    // Grammar patterns this word is part of in the line (〜てしまう in 食べてしまった).
+    if (unit.grammar && unit.grammar.length) {
+      const box = el('div', 'jap-sub-grammar');
+      box.append(el('div', 'jap-sub-section', 'Дүрэм'));
+      for (const g of unit.grammar) {
+        const item = el('div', 'jap-sub-grammar-item');
+        const title = el('div', 'jap-sub-grammar-title');
+        title.append(el('span', 'jap-sub-grammar-pattern', g.pattern), el('span', 'jap-sub-level', g.level));
+        item.append(title, el('div', 'jap-sub-grammar-meaning', g.meanings_mn.join('; ')));
+        if (g.attach_mn) item.append(el('div', 'jap-sub-grammar-attach', g.attach_mn));
+        if (g.note_mn) item.append(el('div', 'jap-sub-note', g.note_mn));
+        if (g.examples && g.examples[0]) item.append(exampleView(g.examples[0]));
+        box.append(item);
+      }
       out.push(box);
     }
 
@@ -594,6 +608,46 @@
       out.push(box);
     }
     return out;
+  }
+
+  function exampleView(x) {
+    const ex = el('div', 'jap-sub-example');
+    const ja = el('div', 'jap-sub-example-ja');
+    ja.append(withKanji(x.ja));
+    const say = speakButton(x.ja, 'Өгүүлбэрийг сонсох');
+    if (say) ja.append(say);
+    ex.append(ja, el('div', 'jap-sub-example-mn', x.mn));
+    return ex;
+  }
+
+  // ---------- listening: the browser's own Japanese voice (speechSynthesis), no server ----------
+
+  // The button only appears when the browser has a Japanese voice; without one it would read the text in English.
+  let jaVoice = null;
+  function findJaVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices().filter((v) => /^ja\b/i.test(v.lang));
+    jaVoice = voices.find((v) => v.localService) || voices[0] || null;
+  }
+  if ('speechSynthesis' in window) {
+    findJaVoice();
+    speechSynthesis.addEventListener('voiceschanged', findJaVoice);
+  }
+
+  function speakButton(text, title) {
+    if (!jaVoice) return null;
+    const b = el('button', 'jap-sub-say', '🔊');
+    b.title = title;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = jaVoice;
+      u.lang = jaVoice.lang;
+      u.rate = 0.9;
+      speechSynthesis.speak(u);
+    });
+    return b;
   }
 
   // JMdict parts of speech → our labels (only the common ones; others are left out).

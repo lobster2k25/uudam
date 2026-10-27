@@ -1,6 +1,8 @@
 # Uudam – Netflix & YouTube (browser extension)
 
-Japanese subtitles on Netflix and YouTube with furigana; click a word for its Mongolian meaning and kanji breakdown.
+Japanese subtitles on Netflix and YouTube with furigana; click a word for its Mongolian meaning and kanji breakdown,
+the grammar patterns it is part of (〜てしまう, 〜わけにはいかない) and a 🔊 button that reads it aloud with the browser's own
+Japanese voice (shown only when the computer has one).
 Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 
 ![Uudam on a YouTube video: the line with furigana; the mouse rests on a word, the video pauses and the Mongolian meaning opens; a click on a kanji shows its stroke order](docs/demo.gif)
@@ -84,7 +86,7 @@ English fallback from JMdict © EDRDG (CC BY-SA 4.0); kanji readings and formati
 Needs Node 20+, npm, git, curl, gunzip (Linux, macOS, or Git Bash on Windows).
 
 ```sh
-git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.5.9
+git clone https://github.com/lobster2k25/mongol-dict && git -C mongol-dict checkout v0.7.3
 git clone https://github.com/lobster2k25/uudam extension   # must sit next to mongol-dict
 (cd mongol-dict && npm install && sh ja-mn/tools/fetch-sources.sh && node ja-mn/tools/build-freq.js)
 cd extension && npm install && node build.js

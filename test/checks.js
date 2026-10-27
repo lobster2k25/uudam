@@ -110,6 +110,22 @@ async function checks(browser, name) {
   if (!/surmise/.test(sontaku) || !/discrepancy|inconsistency|conflict/i.test(sogo)) failed = true;
   await page.mouse.move(200, 150);
 
+  // Grammar patterns in the line show under the word: 思わなかった → 〜なかった, 〜と思う.
+  await page.waitForFunction(() => document.querySelector('.jap-sub-lines').innerText.includes('わなかった'), { timeout: 30000 });
+  const omowa = await page.evaluateHandle(() => [...document.querySelectorAll('.jap-sub-word')].find((s) => s.textContent.startsWith('思') && s.textContent.endsWith('わなかった')));
+  await omowa.hover();
+  const grammar = await page.waitForFunction(() => {
+    const g = document.querySelector('.jap-sub-popup .jap-sub-grammar');
+    return g && g.innerText;
+  }, { timeout: 5000 }).then((h) => h.jsonValue()).catch(() => '');
+  console.log('grammar row:', grammar.replace(/\s+/g, ' ').slice(0, 100) || 'none');
+  await page.screenshot({ path: path.join(out, `${name}-grammar.png`) });
+  if (!/Дүрэм/.test(grammar) || !/なかった|と思う/.test(grammar)) failed = true;
+  // A corner far from the (taller) popup, so the video plays on to the next line.
+  await page.mouse.move(1270, 10);
+  await new Promise((r) => setTimeout(r, 800));
+
+
   // Words from the whole track are logged as missing, including lines not yet on screen.
   const missLog = logs.find((l) => l.includes('words not in the dictionary')) || '';
   // Rare words from the sample's last line; pick others if the dictionary ever gains these.

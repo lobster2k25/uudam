@@ -37,7 +37,12 @@
       }
     }
     const kanji = new Map(dict.kanji.map((k) => [k.kanji, k]));
-    return { words, kanji, fallback: fallbackIndex(fallback) };
+    // Grammar patterns (〜てしまう): each one's match regexes joined into one, run over a whole subtitle line.
+    const grammar = [];
+    for (const g of dict.grammar || []) {
+      try { grammar.push({ entry: g, re: new RegExp(g.match.map((m) => `(?:${m})`).join('|'), 'g') }); } catch { /* bad regex: skip */ }
+    }
+    return { words, kanji, grammar, fallback: fallbackIndex(fallback) };
   }
 
   const base = (t) => (t.basic_form && t.basic_form !== '*' ? t.basic_form : t.surface_form);
@@ -113,6 +118,48 @@
     };
   }
 
+  // Gives each unit of a line the grammar patterns found over it: unit.grammar = [entry, …], longest match first.
+  // A match lying inside the stem of a word we have an entry for is left out (でも is a word, not 〜ても).
+  const MAX_GRAMMAR = 3;
+  function attachGrammar(units, index) {
+    const text = units.map((u) => u.surface).join('');
+    const spans = [];
+    let at = 0;
+    for (const u of units) {
+      const head = u.surface.length - u.parts.reduce((n, p) => n + p.surface.length, 0);
+      spans.push({ start: at, end: at + u.surface.length, headEnd: at + head });
+      at += u.surface.length;
+      u.grammar = [];
+    }
+    const hits = units.map(() => []);
+    for (const { entry, re } of index.grammar || []) {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(text))) {
+        if (!m[0]) { re.lastIndex++; continue; }
+        // Punctuation a regex took along (でも、) doesn't count as reaching past the word.
+        const core = m[0].replace(/^[\s、。，．,.!?！？…・「」『』（）()]+/, '');
+        const s = m.index + (m[0].length - core.length);
+        const e = s + core.replace(/[\s、。，．,.!?！？…・「」『』（）()]+$/, '').length;
+        if (e <= s) continue;
+        units.forEach((u, i) => {
+          const sp = spans[i];
+          if (!u.lookable || s >= sp.end || e <= sp.start) return;
+          if (u.entries.length && s >= sp.start && e <= sp.headEnd) return;
+          hits[i].push({ entry, len: e - s });
+        });
+      }
+    }
+    // One pattern per family: 〜てしまった and 〜てしまう start the same way, so only the longer match is shown.
+    const family = (g) => g.pattern.replace(/[〜~]/g, '').replace(/[（(].*$/, '').slice(0, 3);
+    units.forEach((u, i) => {
+      const seen = new Set();
+      u.grammar = hits[i].sort((a, b) => b.len - a.len).map((h) => h.entry)
+        .filter((g) => !seen.has(family(g)) && seen.add(family(g))).slice(0, MAX_GRAMMAR);
+    });
+    return units;
+  }
+
   // Furigana for one token: [{ text, rt? }]. Kana parts of the word stay bare: 取り戻す → 取(と)り戻(もど)す.
   function furigana(surface, reading) {
     if (!reading || !KANJI.test(surface)) return [{ text: surface }];
@@ -172,10 +219,10 @@
   // load(file) → the parsed JSON of a file in the add-on (or on disk, in Node).
   async function loadDict(load) {
     const { version, parts } = await load('data/dict/parts.json');
-    const [kanji, ...lists] = await Promise.all([load('data/dict/kanji.json'),
+    const [kanji, grammar, ...lists] = await Promise.all([load('data/dict/kanji.json'), load('data/dict/grammar.json').catch(() => []),
       ...[...Array(parts).keys()].map((i) => load(`data/dict/words-${i}.json`))]);
-    return { version, kanji, words: lists.flat() };
+    return { version, kanji, grammar, words: lists.flat() };
   }
 
-  return { buildIndex, fallbackIndex, rankFallback, segment, furigana, toHiragana, kanjiReadings, loadDict };
+  return { buildIndex, fallbackIndex, rankFallback, segment, attachGrammar, furigana, toHiragana, kanjiReadings, loadDict };
 });

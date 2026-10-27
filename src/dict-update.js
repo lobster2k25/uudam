@@ -23,7 +23,7 @@
     return false;
   }
 
-  // A release file ({ version, kanji, words, names }, tools/build-release.js) → the add-ons' dictionary shape ({ version, kanji, words }).
+  // A release file ({ version, kanji, words, names, grammar }, tools/build-release.js) → the add-ons' dictionary shape ({ version, kanji, words, grammar }).
   function fromRelease(rel) {
     const kanji = rel.kanji.map(({ kanji, meanings_mn, origin_mn, note_kind, note_mn, examples }) => ({
       kanji, meanings_mn, origin_mn: origin_mn || '', note_kind, note_mn, examples,
@@ -33,7 +33,9 @@
       id, word, reading, alt, pos: `name-${kind}`, meanings_mn: desc_mn ? [mn, desc_mn] : [mn], note_kind: '', note_mn: '',
     }));
     const words = [...rel.words.map(({ status, ...e }) => e), ...names];
-    return { version: rel.version, kanji, words };
+    // Grammar patterns (〜てしまう) since mongol-dict 0.7.0; older releases have none.
+    const grammar = (rel.grammar || []).map(({ status, ...g }) => g);
+    return { version: rel.version, kanji, words, grammar };
   }
 
   // Throws unless the download looks like a whole dictionary, so a broken file never replaces a good one.

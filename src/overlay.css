@@ -71,6 +71,16 @@
 .jap-sub-example { margin-top: 8px; padding-left: 10px; border-left: 2px solid #444; font-size: 13px; }
 .jap-sub-example-mn { color: #aeaeb2; }
 .jap-sub-parts { margin-top: 8px; font-size: 13px; color: #c7c7cc; }
+.jap-sub-grammar { margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 13px; }
+.jap-sub-section { font-size: 12px; color: #8e8e93; }
+.jap-sub-grammar-item + .jap-sub-grammar-item { margin-top: 8px; }
+.jap-sub-grammar-title { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+.jap-sub-grammar-pattern { font-size: 15px; color: #ffe58a; }
+.jap-sub-level { padding: 0 5px; border-radius: 4px; background: #2c2c2e; font-size: 11px; color: #8e8e93; }
+.jap-sub-grammar-meaning { margin-top: 2px; }
+.jap-sub-grammar-attach { margin-top: 2px; font-size: 12px; color: #8e8e93; }
+.jap-sub-say { margin-left: 6px; padding: 0 4px; border: 0; border-radius: 4px; background: none; color: inherit; font-size: 13px; line-height: 1; cursor: pointer; opacity: 0.7; vertical-align: middle; }
+.jap-sub-say:hover { opacity: 1; background: #2c2c2e; }
 .jap-sub-kanji { margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 13px; }
 .jap-sub-kanji-row { display: flex; align-items: baseline; gap: 10px; }
 .jap-sub-kanji-char { font-size: 20px; width: 1.2em; }

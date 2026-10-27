@@ -32,6 +32,9 @@ kuromoji.builder({ dicPath: path.join(__dirname, '..', 'vendor', 'dict') }).buil
   assert.strictEqual(notes('行きませんでした'), 'эелдэг хэлбэр · үгүйсгэл · өнгөрсөн цаг');
   assert.strictEqual(notes('読んだ'), 'өнгөрсөн цаг');
   assert.strictEqual(notes('来るだろう'), 'таамаг');
+  assert.strictEqual(L.formNotes(seg('何してるの？')[1].parts).join(' · '), 'үргэлжилж буй');
+  assert.strictEqual(notes('読んでる'), 'үргэлжилж буй');
+  assert.strictEqual(notes('見せて'), 'て хэлбэр (…аад; …аач гэсэн хүсэлт)');
   assert.strictEqual(units[3].lookable, false);
   assert.strictEqual(rubyText(L.furigana('取り戻す', 'トリモドス')), '取(と)り戻(もど)す');
   assert.strictEqual(rubyText(L.furigana('見', 'ミ')), '見(み)');

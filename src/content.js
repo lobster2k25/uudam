@@ -542,6 +542,8 @@
     if (unit.reading) head.append(el('span', 'jap-sub-head-reading', unit.reading));
     const say = speakButton(headWord, 'Үгийг сонсох');
     if (say) head.append(say);
+    const again = replayButton();
+    if (again) head.append(again);
     out.push(head);
 
     if (!unit.entries.length) out.push(...fallbackView(unit));
@@ -556,8 +558,16 @@
       out.push(box);
     }
 
+    // The bent form in one line: 食べ + られ + なかっ + た = идэвхгүй / чадах · үгүйсгэл · өнгөрсөн цаг.
+    const notes = L.formNotes(unit.parts);
     const parts = unit.parts.filter((p) => p.entries.length);
-    if (parts.length) {
+    if (notes.length) {
+      const box = el('div', 'jap-sub-form');
+      const stem = unit.surface.slice(0, unit.surface.length - unit.parts.map((p) => p.surface).join('').length);
+      box.append(el('span', 'jap-sub-form-label', 'Хэлбэр'), el('span', 'jap-sub-form-parts', [stem, ...unit.parts.map((p) => p.surface)].join(' + ')),
+        el('span', 'jap-sub-form-notes', `= ${notes.join(' · ')}`));
+      out.push(box);
+    } else if (parts.length) {
       const box = el('div', 'jap-sub-parts');
       for (const p of parts) box.append(el('div', null, `+ ${p.surface} — ${p.entries[0].meanings_mn[0]}`));
       out.push(box);
@@ -632,6 +642,28 @@
   if ('speechSynthesis' in window) {
     findJaVoice();
     speechSynthesis.addEventListener('voiceschanged', findJaVoice);
+  }
+
+  // ⟲ plays the subtitle line on screen again from its start (only when we have the subtitle file's timings).
+  function replayButton() {
+    const video = findVideo();
+    if (!video || !loaded.cues.length || otherTitle(video)) return null;
+    const t = video.currentTime;
+    const cue = loaded.cues.filter((c) => c.start <= t && t < c.end).sort((a, b) => a.start - b.start)[0];
+    if (!cue) return null;
+    const b = el('button', 'jap-sub-say jap-sub-replay', '⟲');
+    b.title = 'Энэ мөрийг дахин сонсох';
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideLookup();
+      // The replay plays on; leaving the subtitles afterwards must not pause or play it again.
+      pausedByUs = false;
+      hovering = false;
+      clearTimeout(leaveTimer);
+      leaveTimer = null;
+      window.postMessage(TAG + JSON.stringify({ type: 'seek', time: Math.max(0, cue.start - 0.2) }), '*');
+    });
+    return b;
   }
 
   function speakButton(text, title) {

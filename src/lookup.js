@@ -57,6 +57,30 @@
     return false;
   }
 
+  // What the endings of a bent word do, in Mongolian, in order: 食べ|られ|なかっ|た → чадах / идэвхгүй, үгүйсгэл, өнгөрсөн цаг.
+  const ENDINGS = {
+    ない: 'үгүйсгэл', ぬ: 'үгүйсгэл', ん: 'үгүйсгэл', た: 'өнгөрсөн цаг', ます: 'эелдэг хэлбэр', です: 'эелдэг хэлбэр',
+    れる: 'идэвхгүй / чадах', られる: 'идэвхгүй / чадах', せる: 'үйлдүүлэх', させる: 'үйлдүүлэх', たい: 'хүсэх', たがる: 'хүсэх',
+    う: 'санал, бодол (…ъя)', よう: 'санал, бодол (…ъя)', いる: 'үргэлжилж буй', おる: 'үргэлжилж буй', ある: 'хийгдсэн байдал',
+    しまう: 'бүрэн дуусгах / харамсах', ちゃう: 'бүрэн дуусгах / харамсах', じゃう: 'бүрэн дуусгах / харамсах',
+    おく: 'урьдчилан хийх', とく: 'урьдчилан хийх', みる: 'оролдож үзэх', いく: 'цааш үргэлжлэх', くる: 'ирэх, эхлэх',
+    くれる: 'надад хийж өгөх', くださる: 'надад хийж өгөх', あげる: 'бусдад хийж өгөх', やる: 'бусдад хийж өгөх',
+    もらう: 'хийлгэж авах', いただく: 'хийлгэж авах',
+  };
+  function formNotes(parts) {
+    const notes = [];
+    let prev = '';
+    for (const p of parts || []) {
+      // だ is the past of 読んだ, but だろ/でしょ guess (だろう, でしょう; their う is part of the guess).
+      const guess = /^(だろ|でしょ)/.test(prev);
+      prev = p.surface;
+      if (guess && p.form === 'う') continue;
+      const note = /^(だろ|でしょ)/.test(p.surface) ? 'таамаг' : p.form === 'だ' ? ENDINGS.た : ENDINGS[p.form];
+      if (note && !notes.includes(note)) notes.push(note);
+    }
+    return notes;
+  }
+
   // Splits one subtitle line (already tokenized) into units: { surface, form, reading, entries, parts, ruby, kanji, lookable }.
   function segment(tokens, index) {
     const units = [];
@@ -224,5 +248,5 @@
     return { version, kanji, grammar, words: lists.flat() };
   }
 
-  return { buildIndex, fallbackIndex, rankFallback, segment, attachGrammar, furigana, toHiragana, kanjiReadings, loadDict };
+  return { formNotes, buildIndex, fallbackIndex, rankFallback, segment, attachGrammar, furigana, toHiragana, kanjiReadings, loadDict };
 });

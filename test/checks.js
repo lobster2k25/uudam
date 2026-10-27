@@ -121,6 +121,18 @@ async function checks(browser, name) {
   console.log('grammar row:', grammar.replace(/\s+/g, ' ').slice(0, 100) || 'none');
   await page.screenshot({ path: path.join(out, `${name}-grammar.png`) });
   if (!/Дүрэм/.test(grammar) || !/なかった|と思う/.test(grammar)) failed = true;
+  // The bent form in one line (思わなかった = үгүйсгэл · өнгөрсөн цаг), and ⟲ replays the line from its start.
+  const form = await page.$eval('.jap-sub-popup', (p) => (p.querySelector('.jap-sub-form') || {}).innerText || '');
+  console.log('form line:', form.replace(/\s+/g, ' ') || 'none');
+  if (!/үгүйсгэл/.test(form) || !/өнгөрсөн/.test(form)) failed = true;
+  const hasReplay = await page.$('.jap-sub-popup .jap-sub-replay');
+  if (hasReplay) await hasReplay.click();
+  await page.mouse.move(1270, 10);
+  await new Promise((r) => setTimeout(r, 600));
+  const after = await page.$eval('video', (v) => ({ to: window.seekedTo, playing: !v.paused }));
+  console.log('replay button:', !!hasReplay, '| jumped to', after.to, '| playing:', after.playing);
+  // The line starts at 16 s; the replay starts a moment before it (seekedTo: the fake player's seek, test/netflix.html).
+  if (!hasReplay || !(after.to >= 15.5 && after.to <= 16) || !after.playing) failed = true;
   // A corner far from the (taller) popup, so the video plays on to the next line.
   await page.mouse.move(1270, 10);
   await new Promise((r) => setTimeout(r, 800));

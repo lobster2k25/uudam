@@ -2,7 +2,8 @@
 
 Japanese subtitles on Netflix and YouTube with furigana; click a word for its Mongolian meaning and kanji breakdown,
 the grammar patterns it is part of (〜てしまう, 〜わけにはいかない) and a 🔊 button that reads it aloud with the browser's own
-Japanese voice (shown only when the computer has one).
+Japanese voice (shown only when the computer has one). A bent word gets one line on what its endings do
+(食べられなかった = идэвхгүй / чадах · үгүйсгэл · өнгөрсөн цаг), and ⟲ plays the subtitle line again from its start.
 Firefox (Manifest V3, Firefox 142+) and Chrome (111+). One folder works in both.
 
 ![Uudam on a YouTube video: the line with furigana; the mouse rests on a word, the video pauses and the Mongolian meaning opens; a click on a kanji shows its stroke order](docs/demo.gif)

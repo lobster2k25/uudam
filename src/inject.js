@@ -238,10 +238,24 @@
     }
   }
 
+  // Replay a subtitle line: through the site's own player, since Netflix breaks if the <video> is moved directly.
+  function seek(time) {
+    try {
+      const nf = window.netflix && window.netflix.appContext.state.playerApp.getAPI().videoPlayer;
+      const player = nf && nf.getVideoPlayerBySessionId(nf.getAllPlayerSessionIds()[0]);
+      if (player) { player.seek(Math.round(time * 1000)); player.play(); return; }
+    } catch {}
+    const yt = document.getElementById('movie_player');
+    if (yt && yt.seekTo) { yt.seekTo(time, true); if (yt.playVideo) yt.playVideo(); return; }
+    const video = document.querySelector('video');
+    if (video) { video.currentTime = time; video.play(); }
+  }
+
   window.addEventListener('message', async (e) => {
     if (where !== 'page' || e.source !== window || typeof e.data !== 'string' || !e.data.startsWith(TAG)) return;
     const msg = parse(e.data.slice(TAG.length));
     if (msg.type === 'yt-show') { try { showYouTubeTrack(msg); } catch (err) { console.warn(`[jap-sub] could not turn on YouTube captions: ${err}`); } return; }
+    if (msg.type === 'seek') { seek(msg.time); return; }
     if (msg.type !== 'fetch') return;
     try {
       const res = await plainFetch(msg.url);

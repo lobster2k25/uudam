@@ -29,6 +29,11 @@
     video.srcObject = canvas.captureStream(20);
     video.play();
 
+    // Netflix's player API (seek in ms). A canvas stream can't seek, so it only records where it was asked to go.
+    const nfPlayer = { seek: (ms) => { window.seekedTo = ms / 1000; }, play: () => video.play() };
+    window.netflix = { appContext: { state: { playerApp: { getAPI: () => ({ videoPlayer: {
+      getAllPlayerSessionIds: () => ['s1'], getVideoPlayerBySessionId: () => nfPlayer } }) } } } };
+
     // What Netflix's player does with its manifest response.
     const manifest = {
       result: {

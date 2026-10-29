@@ -38,6 +38,19 @@ async function checks(browser, name) {
   }));
   console.log('subtitle:', state.line, '| Netflix subs hidden:', state.netflixHidden);
   await page.screenshot({ path: path.join(out, `${name}-line.png`) });
+  // 2人 is read ふたり (not に・にん), and 車椅子 shows its dictionary parts 車 + 椅子 before its kanji.
+  const futari = await page.evaluate(() => [...document.querySelectorAll('.jap-sub-word')].find((s) => s.textContent.includes('2人'))?.querySelector('rt')?.textContent);
+  const chair = await page.evaluateHandle(() => [...document.querySelectorAll('.jap-sub-word')].find((s) => s.textContent.includes('車椅子')));
+  await chair.hover();
+  const split = await page.waitForFunction(() => {
+    const p = document.querySelector('.jap-sub-popup .jap-sub-split');
+    return p && p.innerText;
+  }, { timeout: 5000 }).then((h) => h.jsonValue()).catch(() => '');
+  console.log('2人 reads:', futari, '| split:', split.replace(/\s+/g, ' ') || 'none');
+  await page.screenshot({ path: path.join(out, `${name}-split.png`) });
+  if (futari !== 'ふたり' || !/車 \+ 椅子/.test(split) || !/сандал/.test(split)) failed = true;
+  await page.mouse.move(1270, 10);
+  await new Promise((r) => setTimeout(r, 500));
   // Hovering a word pauses the video and opens its popup.
   await page.hover('.jap-sub-word');
   await page.waitForSelector('.jap-sub-popup', { timeout: 5000 });

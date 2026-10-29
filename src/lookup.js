@@ -87,6 +87,33 @@
     return notes;
   }
 
+  // Numbers with a counter that are read their own way: 2人 ふたり (not に・にん), 3日 みっか, 20歳 はたち.
+  // 1日 is left out: it is ついたち as a date but いちにち as "one day".
+  const COUNTED = {
+    人: { 1: 'ひとり', 2: 'ふたり', 4: 'よにん' },
+    日: { 2: 'ふつか', 3: 'みっか', 4: 'よっか', 5: 'いつか', 6: 'むいか', 7: 'なのか', 8: 'ようか', 9: 'ここのか', 10: 'とおか',
+      14: 'じゅうよっか', 20: 'はつか', 24: 'にじゅうよっか' },
+    歳: { 20: 'はたち' },
+    つ: { 1: 'ひとつ', 2: 'ふたつ', 3: 'みっつ', 4: 'よっつ', 5: 'いつつ', 6: 'むっつ', 7: 'ななつ', 8: 'やっつ', 9: 'ここのつ' },
+  };
+  const KANJI_DIGITS = '〇一二三四五六七八九';
+  function numberValue(s) {
+    const ascii = s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+    if (/^\d+$/.test(ascii)) return Number(ascii);
+    const m = s.match(/^([二三四五六七八九]?)(十?)([一二三四五六七八九]?)$/);
+    if (!m || !s) return null;
+    if (!m[2]) return s.length === 1 ? KANJI_DIGITS.indexOf(s) : null;
+    return (m[1] ? KANJI_DIGITS.indexOf(m[1]) : 1) * 10 + (m[3] ? KANJI_DIGITS.indexOf(m[3]) : 0);
+  }
+  function countedReading(toks) {
+    if (toks.length !== 2 || toks[0].pos_detail_1 !== '数') return null;
+    const table = COUNTED[toks[1].surface_form];
+    const n = numberValue(toks[0].surface_form);
+    return (table && n != null && table[n]) || null;
+  }
+  // 2人 / ２人 → 二人, to find our entry for it.
+  const kanjiNumber = (f) => f.replace(/^[0-9０-９]$|^[0-9０-９](?=\D)/, (d) => KANJI_DIGITS[Number(d.replace(/[０-９]/, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)))]);
+
   // Splits one subtitle line (already tokenized) into units: { surface, form, reading, entries, parts, ruby, kanji, lookable }.
   function segment(tokens, index) {
     const units = [];
@@ -99,13 +126,17 @@
         const surface = toks.map((t) => t.surface_form).join('');
         const dictForm = toks.slice(0, -1).map((t) => t.surface_form).join('') + base(toks[len - 1]);
         // Our words join any tokens; JMdict ones only spans with kanji (else every kana phrase would glue together).
-        const hit = [dictForm, surface].find((f) => index.words.has(f) || (KANJI.test(f) && index.fallback.has(f)));
+        const hit = [dictForm, surface, kanjiNumber(surface)].find((f) => index.words.has(f) || (KANJI.test(f) && index.fallback.has(f)));
         if (hit) { span = len; form = hit; break; }
       }
+      // A number and its counter stay together when they have their own reading (3日 みっか), entry or not.
+      if (span === 1 && countedReading(tokens.slice(i, i + 2))) { span = 2; form = tokens[i].surface_form + tokens[i + 1].surface_form; }
       const head = tokens.slice(i, i + span);
       i += span;
       const parts = [];
-      while (i < tokens.length && isInflection(tokens[i], (parts.length ? parts[parts.length - 1] : head[head.length - 1]))) {
+      // A number word takes no endings (kuromoji reads the つ of 2つ as a verb, and would glue ください to it).
+      const numberWord = head.length > 1 && head[0].pos_detail_1 === '数';
+      while (!numberWord && i < tokens.length && isInflection(tokens[i], (parts.length ? parts[parts.length - 1] : head[head.length - 1]))) {
         parts.push(tokens[i++]);
       }
       units.push(makeUnit(head, form, parts, index));
@@ -130,19 +161,25 @@
       const tail = toHiragana(s.slice(p));
       headReading = headReading.endsWith(tail) ? headReading.slice(0, headReading.length - tail.length) + toHiragana(b.slice(p)) : null;
     }
+    // 2人 ふたり; else a number word we have (3人 → 三人 さんにん) read as a whole, since kuromoji can't read 3.
+    const headSurface = head.map((t) => t.surface_form).join('');
+    const counted = countedReading(head) || (head.length > 1 && head[0].pos_detail_1 === '数' && !head.every(readingOf) && entries[0] && entries[0].reading) || null;
+    if (counted) headReading = counted;
     const symbol = head.every((t) => t.pos === '記号') || !JAPANESE.test(surface);
     const fallback = entries.length ? [] : rankFallback(index.fallback.get(form) || (head.length === 1 && index.fallback.get(head[0].surface_form)) || [], headReading);
     return {
       surface,
       form,
-      reading: entries[0] ? entries[0].reading : headReading,
+      reading: counted || (entries[0] ? entries[0].reading : headReading),
       pos: head[0].pos,
       proper: head[0].pos_detail_1 === '固有名詞',
       properKind: head[0].pos_detail_2, // 人名 person, 地域 place, 組織 organisation
       entries,
       fallback, // JMdict entries (English), only when we have no entry of our own
       parts: parts.map((t) => ({ surface: t.surface_form, form: base(t), entries: index.words.get(base(t)) || [] })),
-      ruby: all.flatMap((t) => furigana(t.surface_form, readingOf(t))),
+      ruby: counted
+        ? [{ text: headSurface, rt: counted }, ...parts.flatMap((t) => furigana(t.surface_form, readingOf(t)))]
+        : all.flatMap((t) => furigana(t.surface_form, readingOf(t))),
       kanji: [...new Set([...surface].filter((c) => KANJI.test(c)))].map((c) => index.kanji.get(c) || { kanji: c, meanings_mn: [] }),
       lookable: !symbol,
     };
@@ -151,6 +188,46 @@
   // Gives each unit of a line the grammar patterns found over it: unit.grammar = [entry, …], longest match first.
   // A match lying inside the stem of a word we have an entry for is left out (でも is a word, not 〜ても).
   const MAX_GRAMMAR = 3;
+  // A long word split into dictionary words, before its single kanji: 車椅子 → 車 + 椅子, 取り戻す → 取り + 戻す.
+  // Pieces are our own words (names cost a bit more) or one kanji with a meaning of ours, and each has a kanji or is
+  // katakana (no lone particles: 気に入る stays whole). Fewest pieces win, then fewest lone kanji and names; at least
+  // one piece must be a word of two or more letters. A piece's reading shows only where it fits the word's reading
+  // (救急車 きゅうきゅうしゃ: 車 is not くるま here). [{ text, reading, meaning }] or null.
+  function splitWord(word, index, wordReading) {
+    if (!word || word.length < 3 || !KANJI.test(word)) return null;
+    const usable = (e) => e.meanings_mn && e.meanings_mn.length;
+    const ownWord = (s) => {
+      if (!KANJI.test(s) && !/^[ァ-ヺー]+$/.test(s)) return null;
+      const list = (index.words.get(s) || []).filter(usable);
+      return list.find((e) => !/^name-/.test(e.pos)) || list[0];
+    };
+    const best = [{ pieces: [], cost: 0 }];
+    for (let end = 1; end <= word.length; end++) {
+      for (let start = Math.max(0, end - 8); start < end; start++) {
+        if (!best[start] || (start === 0 && end === word.length)) continue;
+        const text = word.slice(start, end);
+        const e = ownWord(text);
+        const k = !e && text.length === 1 && index.kanji.get(text);
+        if (!e && !(k && k.meanings_mn && k.meanings_mn.length)) continue;
+        const piece = e
+          ? { text, reading: e.reading !== text ? e.reading : null, meaning: e.meanings_mn[0], long: text.length > 1 }
+          : { text, reading: null, meaning: k.meanings_mn.slice(0, 2).join(', '), long: false };
+        // 10 per piece, 1 more for a lone kanji: 車 + 椅子 (21) beats 車 + 椅 + 子 (32).
+        const cost = best[start].cost + 10 + (e && !/^name-/.test(e.pos) ? 0 : 1);
+        if (!best[end] || cost < best[end].cost) best[end] = { pieces: [...best[start].pieces, piece], cost };
+      }
+    }
+    const found = best[word.length];
+    if (!found || found.pieces.length > 4 || !found.pieces.some((p) => p.long)) return null;
+    let rest = wordReading ? toHiragana(wordReading) : '';
+    return found.pieces.map(({ text, reading, meaning }) => {
+      const r = reading ? toHiragana(reading) : null;
+      const fits = r && rest.startsWith(r);
+      rest = fits ? rest.slice(r.length) : '';
+      return { text, reading: fits ? r : null, meaning };
+    });
+  }
+
   function attachGrammar(units, index) {
     const text = units.map((u) => u.surface).join('');
     const spans = [];
@@ -254,5 +331,5 @@
     return { version, kanji, grammar, words: lists.flat() };
   }
 
-  return { formNotes, buildIndex, fallbackIndex, rankFallback, segment, attachGrammar, furigana, toHiragana, kanjiReadings, loadDict };
+  return { formNotes, splitWord, buildIndex, fallbackIndex, rankFallback, segment, attachGrammar, furigana, toHiragana, kanjiReadings, loadDict };
 });

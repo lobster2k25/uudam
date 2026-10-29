@@ -76,6 +76,9 @@
 .jap-sub-form-notes { color: #fff; }
 .jap-sub-grammar { margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 13px; }
 .jap-sub-section { font-size: 12px; color: #8e8e93; }
+.jap-sub-split { margin-top: 8px; }
+.jap-sub-split-row { display: flex; gap: 8px; align-items: baseline; font-size: 14px; margin-top: 2px; }
+.jap-sub-split-word { font-size: 17px; }
 .jap-sub-grammar-item + .jap-sub-grammar-item { margin-top: 8px; }
 .jap-sub-grammar-title { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
 .jap-sub-grammar-pattern { font-size: 15px; color: #ffe58a; }

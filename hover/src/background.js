@@ -101,6 +101,8 @@ async function words(text) {
         parts: unit.parts.map((p) => p.surface),
         furigana,
         kanji: kanjiOf(form, furigana, idx, kd),
+        // A long word in dictionary words before its kanji: 車椅子 → 車 + 椅子.
+        split: L.splitWord(form, idx, unit.reading),
         // Grammar patterns of the sentence that this word is part of (〜てしまう in 食べてしまった).
         grammar: unit.grammar.map((g) => ({
           pattern: g.pattern, level: g.level, meanings: g.meanings_mn, attach: g.attach_mn, note: g.note_mn, example: g.examples[0] || null,

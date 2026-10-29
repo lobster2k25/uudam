@@ -180,6 +180,7 @@
     .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
     .word { font-size: 26px; font-weight: 600; }
     .reading { color: #ffe58a; font-size: 16px; }
+    .split .reading { font-size: 13px; }
     .anki {
       margin-left: auto; align-self: center; font: 12px/1 system-ui, sans-serif; color: #f2f2f2; cursor: pointer;
       background: #2c2c2e; border: 1px solid #48484a; border-radius: 6px; padding: 5px 8px;
@@ -195,6 +196,8 @@
     li { margin: 1px 0; }
     .mn li { font-size: 16px; }
     .pos { color: #8e8e93; font-size: 12px; font-style: italic; margin-right: 4px; }
+    .split { display: flex; gap: 8px; align-items: baseline; margin-top: 2px; }
+    .split-word { font-size: 17px; }
     .section { color: #8e8e93; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px; }
     .none { color: #aeaeb2; }
     .kanji { display: flex; gap: 10px; margin-top: 6px; padding: 4px 6px; border-radius: 6px; }
@@ -406,6 +409,16 @@
     if (word.grammar && word.grammar.length) {
       parts.push(el('div', 'section', 'Дүрэм · Grammar'));
       parts.push(...word.grammar.map(grammarItem));
+    }
+    if (word.split) {
+      parts.push(el('div', 'section', `Бүрдэл · Parts: ${word.split.map((p) => p.text).join(' + ')}`));
+      for (const p of word.split) {
+        const row = el('div', 'split');
+        row.append(el('span', 'split-word', p.text));
+        if (p.reading) row.append(el('span', 'reading', p.reading));
+        row.append(el('span', null, p.meaning));
+        parts.push(row);
+      }
     }
     if (word.kanji && word.kanji.length) {
       parts.push(el('div', 'section', 'Ханз · Kanji'));

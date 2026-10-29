@@ -590,6 +590,21 @@
       out.push(box);
     }
 
+    // A long word in dictionary words before its single kanji: 車椅子 → 車 + 椅子.
+    const split = L.splitWord(headWord, index, unit.reading);
+    if (split) {
+      const box = el('div', 'jap-sub-split');
+      box.append(el('div', 'jap-sub-section', `Бүрдэл: ${split.map((p) => p.text).join(' + ')}`));
+      for (const p of split) {
+        const row = el('div', 'jap-sub-split-row');
+        row.append(withKanji(p.text, 'jap-sub-split-word'));
+        if (p.reading) row.append(el('span', 'jap-sub-reading', p.reading));
+        row.append(el('span', null, p.meaning));
+        box.append(row);
+      }
+      out.push(box);
+    }
+
     // Kanji outside the jōyō set have no entry of ours; leave them out rather than show an empty row.
     const kanji = unit.kanji.filter((k) => k.meanings_mn.length);
     if (kanji.length) {

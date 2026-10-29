@@ -34,6 +34,13 @@ kuromoji.builder({ dicPath: path.join(__dirname, '..', 'vendor', 'dict') }).buil
   assert.strictEqual(notes('来るだろう'), 'таамаг');
   assert.strictEqual(L.formNotes(seg('何してるの？')[1].parts).join(' · '), 'үргэлжилж буй');
   assert.strictEqual(notes('読んでる'), 'үргэлжилж буй');
+  // Numbers with a counter read their own way; long words split into dictionary words.
+  assert.strictEqual(seg('2人で行く')[0].reading, 'ふたり');
+  assert.strictEqual(seg('３日に会う')[0].reading, 'みっか');
+  assert.strictEqual(seg('2つください')[0].surface, '2つ');
+  assert.deepStrictEqual((L.splitWord('車椅子', index, 'くるまいす') || []).map((p) => p.text), ['車', '椅子']);
+  assert.strictEqual(L.splitWord('救急車', index, 'きゅうきゅうしゃ')[1].reading, null); // 車 is しゃ here, not くるま
+  assert.strictEqual(L.splitWord('学校', index, 'がっこう'), null);
   assert.strictEqual(notes('見せて'), 'て хэлбэр (…аад; …аач гэсэн хүсэлт)');
   assert.strictEqual(units[3].lookable, false);
   assert.strictEqual(rubyText(L.furigana('取り戻す', 'トリモドス')), '取(と)り戻(もど)す');

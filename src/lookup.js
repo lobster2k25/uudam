@@ -163,7 +163,11 @@
     }
     // 2人 ふたり; else a number word we have (3人 → 三人 さんにん) read as a whole, since kuromoji can't read 3.
     const headSurface = head.map((t) => t.surface_form).join('');
-    const counted = countedReading(head) || (head.length > 1 && head[0].pos_detail_1 === '数' && !head.every(readingOf) && entries[0] && entries[0].reading) || null;
+    // A longer JMdict span can start with one (2人とも → 二人とも): the counted reading, then the rest's own.
+    const lead = head.length > 2 ? countedReading(head.slice(0, 2)) : null;
+    const rest = lead ? head.slice(2) : [];
+    const counted = countedReading(head) || (lead && rest.every(readingOf) ? lead + rest.map(readingOf).join('') : null)
+      || (head.length > 1 && head[0].pos_detail_1 === '数' && !head.every(readingOf) && entries[0] && entries[0].reading) || null;
     if (counted) headReading = counted;
     const symbol = head.every((t) => t.pos === '記号') || !JAPANESE.test(surface);
     const fallback = entries.length ? [] : rankFallback(index.fallback.get(form) || (head.length === 1 && index.fallback.get(head[0].surface_form)) || [], headReading);
@@ -177,7 +181,9 @@
       entries,
       fallback, // JMdict entries (English), only when we have no entry of our own
       parts: parts.map((t) => ({ surface: t.surface_form, form: base(t), entries: index.words.get(base(t)) || [] })),
-      ruby: counted
+      ruby: lead && counted
+        ? [{ text: head[0].surface_form + head[1].surface_form, rt: lead }, ...[...rest, ...parts].flatMap((t) => furigana(t.surface_form, readingOf(t)))]
+        : counted
         ? [{ text: headSurface, rt: counted }, ...parts.flatMap((t) => furigana(t.surface_form, readingOf(t)))]
         : all.flatMap((t) => furigana(t.surface_form, readingOf(t))),
       kanji: [...new Set([...surface].filter((c) => KANJI.test(c)))].map((c) => index.kanji.get(c) || { kanji: c, meanings_mn: [] }),

@@ -38,6 +38,11 @@ kuromoji.builder({ dicPath: path.join(__dirname, '..', 'vendor', 'dict') }).buil
   assert.strictEqual(seg('2人で行く')[0].reading, 'ふたり');
   assert.strictEqual(seg('３日に会う')[0].reading, 'みっか');
   assert.strictEqual(seg('2つください')[0].surface, '2つ');
+  // With a JMdict span that starts with the number (二人とも), 2人 still reads ふたり.
+  const withJm = L.buildIndex(dict, [{ k: ['二人とも'], r: ['ふたりとも'], s: [] }]);
+  const both = L.segment(tokenizer.tokenize('2人とも車椅子だ'), withJm)[0];
+  assert.strictEqual(both.reading, 'ふたりとも');
+  assert.strictEqual(both.ruby[0].rt, 'ふたり');
   assert.deepStrictEqual((L.splitWord('車椅子', index, 'くるまいす') || []).map((p) => p.text), ['車', '椅子']);
   assert.strictEqual(L.splitWord('救急車', index, 'きゅうきゅうしゃ')[1].reading, null); // 車 is しゃ here, not くるま
   assert.strictEqual(L.splitWord('学校', index, 'がっこう'), null);
